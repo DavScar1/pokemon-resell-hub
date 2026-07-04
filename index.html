@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pokémon Resell Hub</title>
+<style>
+:root{
+  --bg:#f5f6f9;
+  --card-bg:#ffffff;
+  --border:#e5e7eb;
+  --text:#111827;
+  --text-secondary:#6b7280;
+  --text-muted:#9ca3af;
+  --primary:#e3350d;
+  --primary-dark:#b8290a;
+  --primary-light:#fde3dd;
+  --blue:#3b4cca;
+  --blue-light:#e3e6fb;
+  --yellow:#ffcb05;
+  --green:#16a34a;
+  --green-light:#dcfce7;
+  --red:#dc2626;
+  --red-light:#fee2e2;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+h1,h2,h3,h4{margin:0;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+
+/* ---------- Auth overlay ---------- */
+#auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.auth-box{width:340px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:28px 26px;box-shadow:0 8px 24px rgba(0,0,0,.08);}
+.auth-box h1{font-size:20px;margin-bottom:2px;}
+.auth-box .sub{color:var(--text-secondary);font-size:12.5px;margin-bottom:18px;}
+.form-group{margin-bottom:12px;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13.5px;background:var(--bg);}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);}
+
+.btn{padding:9px 16px;border-radius:8px;border:none;font-size:13.5px;font-weight:600;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-secondary{background:var(--bg);color:var(--text);border:1.5px solid var(--border);}
+.btn-secondary:hover{background:#eceef2;}
+.btn-sm{padding:6px 10px;font-size:12px;}
+.btn-danger{background:var(--red-light);color:var(--red);}
+.btn-block{width:100%;}
+
+/* ---------- App shell ---------- */
+.app{display:none;min-height:100vh;}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:216px;background:var(--card-bg);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;}
+.sidebar-logo{font-size:16px;font-weight:800;padding:6px 8px 16px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--text-secondary);margin-bottom:2px;}
+.nav-item:hover{background:var(--bg);color:var(--text);}
+.nav-item.active{background:var(--primary-light);color:var(--primary-dark);}
+.nav-item .icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-footer{margin-top:auto;padding:10px 8px 0;border-top:1px solid var(--border);}
+.sidebar-footer .user-email{font-size:11px;color:var(--text-muted);word-break:break-all;margin-bottom:6px;}
+.sidebar-footer button{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;text-decoration:underline;padding:2px 0;}
+
+.main{margin-left:216px;padding:22px 28px 60px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+#sync-status{font-size:11.5px;color:var(--text-muted);}
+
+.page{display:none;}
+.page.active{display:block;}
+.page-header{margin-bottom:18px;}
+.page-header h2{font-size:22px;font-weight:800;letter-spacing:-.4px;}
+.page-header p{color:var(--text-secondary);margin-top:4px;font-size:13px;}
+.section-header{display:flex;align-items:center;justify-content:space-between;}
+
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);}
+.card-title{font-size:14.5px;font-weight:700;margin-bottom:10px;}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+
+.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+.stat-value{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+.stat-label{font-size:12px;color:var(--text-secondary);margin-top:2px;font-weight:600;}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+table.tbl th{text-align:left;color:var(--text-muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.3px;padding:8px 10px;border-bottom:1.5px solid var(--border);}
+table.tbl td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.tbl tr:last-child td{border-bottom:none;}
+table.tbl tr:hover{background:var(--bg);}
+
+.pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;}
+.pill-green{background:var(--green-light);color:#15803d;}
+.pill-red{background:var(--red-light);color:#b91c1c;}
+.pill-yellow{background:#fef3c7;color:#92400e;}
+.pill-blue{background:var(--blue-light);color:var(--blue);}
+.pill-gray{background:#f1f5f9;color:#475569;}
+
+.row-actions{display:flex;gap:6px;justify-content:flex-end;}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:4px 6px;border-radius:6px;}
+.icon-btn:hover{background:var(--bg);color:var(--text);}
+
+.empty-state{text-align:center;padding:36px 10px;color:var(--text-muted);}
+.empty-state p{font-size:13px;}
+
+/* ---------- Modals ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,18,25,.45);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card-bg);border-radius:14px;padding:24px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.25);}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:16px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-actions{display:flex;gap:8px;margin-top:18px;justify-content:flex-end;}
+
+/* ---------- Calendar ---------- */
+.cal-legend{display:flex;gap:16px;margin-bottom:12px;font-size:12px;color:var(--text-secondary);}
+.cal-legend-item{display:flex;align-items:center;gap:6px;}
+.cal-legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.cal-dow{text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);padding-bottom:4px;}
+.cal-cell{min-height:76px;border:1px solid var(--border);border-radius:8px;padding:6px;font-size:11px;background:var(--bg);}
+.cal-cell.empty{background:transparent;border:none;}
+.cal-cell .cal-date{font-weight:700;font-size:11.5px;margin-bottom:4px;}
+.cal-cell.today{border-color:var(--primary);}
+.cal-badge{display:block;border-radius:5px;padding:2px 5px;margin-bottom:3px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ---------- Misc ---------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.an-section-title{font-size:14.5px;font-weight:700;margin-bottom:12px;}
+.insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.insight{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12.5px;}
+.progress-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:4px;}
+.progress-bar-fill{height:100%;background:var(--primary);}
+.cat-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.cat-pill{padding:5px 11px;border-radius:99px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-secondary);}
+.cat-pill.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     AUTH OVERLAY (Firebase email/password login)
+============================================================ -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <h1>🎴 Pokémon Resell Hub</h1>
+    <div class="sub">Shared workspace — sign in with your account.</div>
+    <div id="auth-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:10px;background:var(--red-light);border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="window.authLogin && window.authLogin()">Log In</button>
+      <button class="btn btn-secondary" style="flex:1;" onclick="window.authSignup && window.authSignup()">Sign Up</button>
+    </div>
+    <div id="auth-status" style="margin-top:12px;font-size:12px;color:var(--text-muted);text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP SHELL
+============================================================ -->
+<div class="app" id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">🎴 Resell Hub</div>
+    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="icon">📊</span>Dashboard</button>
+    <button class="nav-item" data-page="sales" onclick="showPage('sales')"><span class="icon">💰</span>Sales Log</button>
+    <button class="nav-item" data-page="inventory" onclick="showPage('inventory')"><span class="icon">📦</span>Inventory</button>
+    <button class="nav-item" data-page="cashflow" onclick="showPage('cashflow')"><span class="icon">💸</span>Cash Flow</button>
+    <button class="nav-item" data-page="calendar" onclick="showPage('calendar')"><span class="icon">🗓️</span>Supplier Calendar</button>
+    <button class="nav-item" data-page="analytics" onclick="showPage('analytics')"><span class="icon">📈</span>Analytics</button>
+    <div class="sidebar-footer">
+      <div class="user-email" id="current-user-email"></div>
+      <button onclick="window.authLogout && window.authLogout()">Log out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div></div>
+      <div id="sync-status">Syncing…</div>
+    </div>
+
+    <!-- ---------------- Dashboard ---------------- -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header"><h2>📊 Dashboard</h2><p>Your business at a glance — revenue, profit, stock and upcoming orders.</p></div>
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-value" id="stat-revenue">$0</div><div class="stat-label">Total Revenue</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-profit">$0</div><div class="stat-label">Total Profit</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-inv-value">$0</div><div class="stat-label">Inventory Value</div><div class="stat-sub" id="stat-inv-sub">0 items</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-upcoming">0</div><div class="stat-label">Upcoming Orders</div><div class="stat-sub">Next 30 days</div></div>
+      </div>
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-title">Recent Sales</div>
+          <div id="dash-recent-sales"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Upcoming Supplier Orders</div>
+          <div id="dash-upcoming-orders"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- Sales Log ---------------- -->
+    <div class="page" id="page-sales">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;letter-spacing:-.4px;">💰 Sales Log</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Track every sale — revenue, cost, fees and profit.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openSaleModal()">+ Log Sale</button>
+      </div>
+      <div class="grid-4" style="margin-bottom:18px;">
+        <div class="stat-card"><div class="stat-value" id="sales-revenue">$0</div><div class="stat-label">Revenue</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-cost">$0</div><div class="stat-label">Cost + Fees</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-profit">$0</div><div class="stat-label">Profit</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-count">0</div><div class="stat-label">Sales Logged</div><div class="stat-sub">All time</div></div>
+      </div>
+      <div class="card"><div id="sales-list"></div></div>
+    </div>
+
+    <!-- ---------------- Inventory ---------------- -->
+    <div class="page" id="page-inventory">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;letter-spacing:-.4px;">📦 Inventory</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Track stock levels, cost basis and inventory value.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openInventoryModal()">+ Add Item</button>
+      </div>
+      <div class="grid-4" style="margin-bottom:18px;">
+        <div class="stat-card"><div class="stat-value" id="inv-value">$0</div><div class="stat-label">Total Value</div><div class="stat-sub">Stock × unit cost</div></div>
+        <div class="stat-card"><div class="stat-value" id="inv-units">0</div><div class="stat-label">Units in Stock</div><div class="stat-sub" id="inv-items-sub">0 items</div></div>
+        <div class="stat-card"><div class="stat-value" id="inv-low">0</div><div class="stat-label">Low Stock</div><div class="stat-sub">At or below reorder point</div></div>
+        <div class="stat-card"><div class="stat-value" id="inv-out">0</div><div class="stat-label">Out of Stock</div><div class="stat-sub">0 units left</div></div>
+      </div>
+      <div class="card">
+        <div class="cat-pills" id="inv-cat-pills"></div>
+        <div id="inventory-list"></div>
+      </div>
+    </div>
+
+    <!-- ---------------- Cash Flow ---------------- -->
+    <div class="page" id="page-cashflow">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;letter-spacing:-.4px;">💸 Cash Flow</h2>
+          <p style="color:var(--text-secondary);font-size:13px;margin-top:3px;">Money out to suppliers → stock arriving → selling → cash in.</p>
+        </div>
+      </div>
+      <div class="grid-4" style="margin-bottom:18px;">
+        <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">From sales</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">To suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Net Cash Flow</div><div class="stat-sub">In − Out</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-pending">$0</div><div class="stat-label">Pending Orders</div><div class="stat-sub">Not yet arrived</div></div>
+      </div>
+      <div class="card"><div id="cf-list"></div></div>
+    </div>
+
+    <!-- ---------------- Supplier Calendar ---------------- -->
+    <div class="page" id="page-calendar">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;letter-spacing:-.4px;">🗓️ Supplier Calendar</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Plan and track orders from suppliers.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openOrderModal()">+ Add Order</button>
+      </div>
+      <div class="card" style="margin-bottom:18px;">
+        <div class="section-header" style="margin-bottom:10px;">
+          <button class="btn btn-secondary btn-sm" onclick="changeCalMonth(-1)">← Prev</button>
+          <div class="card-title" style="margin:0;" id="cal-month-label"></div>
+          <button class="btn btn-secondary btn-sm" onclick="changeCalMonth(1)">Next →</button>
+        </div>
+        <div class="cal-legend">
+          <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#3b4cca;"></span>Order placed</div>
+          <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#e3350d;"></span>Stock arriving</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">All Orders</div>
+        <div id="orders-list" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- ---------------- Analytics ---------------- -->
+    <div class="page" id="page-analytics">
+      <div class="page-header"><h2>📈 Analytics</h2><p>Sales performance, product mix and inventory health.</p></div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="an-section-title" style="margin:0;">🗓️ Monthly Summary</div>
+          <input type="month" id="month-picker" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;background:var(--bg);" onchange="renderAnalytics()">
+        </div>
+        <div id="month-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+      </div>
+
+      <div class="kpi-grid" id="kpi-grid" style="margin-bottom:20px;"></div>
+
+      <div class="grid-2" style="align-items:start;margin-bottom:20px;">
+        <div class="card">
+          <div class="an-section-title">📦 Revenue by Product</div>
+          <div id="an-product-table"></div>
+        </div>
+        <div class="card">
+          <div class="an-section-title">🛒 Revenue by Platform</div>
+          <div id="an-platform-table"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="an-section-title">📅 Monthly Performance</div>
+        <div id="an-monthly-table"></div>
+      </div>
+
+      <div class="card">
+        <div class="an-section-title">🏦 Inventory Intelligence</div>
+        <div id="an-inventory-intel"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODALS
+============================================================ -->
+
+<!-- Sale modal -->
+<div class="modal-overlay" id="sale-modal">
+  <div class="modal">
+    <h3 id="sale-modal-title">Log Sale</h3>
+    <input type="hidden" id="sale-edit-id">
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input type="date" id="sale-date"></div>
+      <div class="form-group"><label>Platform</label>
+        <select id="sale-platform">
+          <option>eBay</option><option>TCGPlayer</option><option>Facebook Marketplace</option>
+          <option>Whatnot</option><option>Local / In-Person</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Item</label>
+      <input type="text" id="sale-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box" oninput="syncSaleItemFromInventory()">
+      <datalist id="inventory-names"></datalist>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label>
+        <select id="sale-category">
+          <option>Booster Box</option><option>Elite Trainer Box</option><option>Booster Bundle</option>
+          <option>Tin</option><option>Blister Pack</option><option>Single Card</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Quantity Sold</label><input type="number" id="sale-qty" min="1" value="1" oninput="computeSalePreview()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Unit Sale Price ($)</label><input type="number" id="sale-price" min="0" step="0.01" oninput="computeSalePreview()"></div>
+      <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="sale-cost" min="0" step="0.01" oninput="computeSalePreview()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Platform Fees ($)</label><input type="number" id="sale-fee" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
+      <div class="form-group"><label>Shipping Cost ($)</label><input type="number" id="sale-shipping" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="sale-notes" rows="2" placeholder="Buyer, condition, etc."></textarea></div>
+    <div class="insight" id="sale-preview" style="margin-top:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('sale-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSale()">Save Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory modal -->
+<div class="modal-overlay" id="inventory-modal">
+  <div class="modal">
+    <h3 id="inventory-modal-title">Add Inventory Item</h3>
+    <input type="hidden" id="inv-edit-id">
+    <div class="form-group"><label>Item Name</label><input type="text" id="inv-name" placeholder="e.g. Scarlet & Violet Booster Box"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label>
+        <select id="inv-category">
+          <option>Booster Box</option><option>Elite Trainer Box</option><option>Booster Bundle</option>
+          <option>Tin</option><option>Blister Pack</option><option>Single Card</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Quantity on Hand</label><input type="number" id="inv-qty" min="0" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="inv-cost" min="0" step="0.01"></div>
+      <div class="form-group"><label>Reorder Threshold</label><input type="number" id="inv-threshold" min="0" value="0"></div>
+    </div>
+    <div class="form-group"><label>Supplier</label><input type="text" id="inv-supplier" placeholder="e.g. Pokémon Center, Costco"></div>
+    <div class="form-group"><label>Notes</label><textarea id="inv-notes" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('inventory-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInventoryItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order modal -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal">
+    <h3 id="order-modal-title">Add Supplier Order</h3>
+    <input type="hidden" id="order-edit-id">
+    <div class="form-group"><label>Supplier</label><input type="text" id="order-supplier" placeholder="e.g. Pokémon Center, Costco"></div>
+    <div class="form-group"><label>Item</label><input type="text" id="order-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Quantity</label><input type="number" id="order-qty" min="1" value="1"></div>
+      <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="order-cost" min="0" step="0.01"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Order Date</label><input type="date" id="order-date"></div>
+      <div class="form-group"><label>Expected Arrival</label><input type="date" id="order-arrival"></div>
+    </div>
+    <div class="form-group"><label>Status</label>
+      <select id="order-status">
+        <option>Ordered</option><option>Shipped</option><option>Arrived</option><option>Cancelled</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="order-notes" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('order-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOrder()">Save Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP LOGIC
+============================================================ -->
+<script>
+// ---------------------------------------------------------------
+// State + persistence
+// ---------------------------------------------------------------
+const CATEGORIES = ['Booster Box','Elite Trainer Box','Booster Bundle','Tin','Blister Pack','Single Card','Other'];
+const LOCAL_KEY = 'pokemonResellHubDB';
+
+let DB = defaultDB();
+let currentPage = 'dashboard';
+let calMonth = new Date();
+let invCatFilter = 'All';
+
+function defaultDB(){
+  return { sales: [], inventory: [], orders: [] };
+}
+
+function loadLocal(){
+  const raw = localStorage.getItem(LOCAL_KEY);
+  if (raw) {
+    try { DB = Object.assign(defaultDB(), JSON.parse(raw)); }
+    catch(e){ DB = defaultDB(); }
+  }
+}
+
+function save(){
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(DB));
+  renderCurrentPage();
+  if (window.cloudSync) window.cloudSync();
+}
+
+// Cloud sync hooks (used by the Firebase module script below)
+window.getDBSnapshot = () => DB;
+window.applyRemoteUpdate = (data) => {
+  DB = Object.assign(defaultDB(), data);
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(DB));
+  renderCurrentPage();
+};
+
+// ---------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function todayISO(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtMoney(n){ n = Number(n)||0; return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(iso){ if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${m}/${d}/${y}`; }
+function num(v){ return Number(v) || 0; }
+function currentUserEmail(){ return (window._authEmail) || ''; }
+
+function saleProfit(s){ return (s.qty*s.price) - (s.qty*s.cost) - num(s.fee) - num(s.shipping); }
+function saleRevenue(s){ return s.qty*s.price; }
+function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping); }
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function openModalEl(id){ document.getElementById(id).classList.add('open'); }
+
+// ---------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------
+function showPage(id){
+  currentPage = id;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === id));
+  renderCurrentPage();
+}
+
+function renderCurrentPage(){
+  populateInventoryDatalist();
+  if (currentPage === 'dashboard') renderDashboard();
+  else if (currentPage === 'sales') renderSales();
+  else if (currentPage === 'inventory') renderInventory();
+  else if (currentPage === 'cashflow') renderCashFlow();
+  else if (currentPage === 'calendar') renderCalendar();
+  else if (currentPage === 'analytics') renderAnalytics();
+}
+
+function populateInventoryDatalist(){
+  const dl = document.getElementById('inventory-names');
+  dl.innerHTML = DB.inventory.map(i => `<option value="${escapeHtml(i.name)}">`).join('');
+}
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------------------------------------------------------------
+// DASHBOARD
+// ---------------------------------------------------------------
+function renderDashboard(){
+  const revenue = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
+  const profit = DB.sales.reduce((a,s) => a + saleProfit(s), 0);
+  const invValue = DB.inventory.reduce((a,i) => a + i.qty*i.cost, 0);
+  const in30 = DB.orders.filter(o => {
+    if (o.status === 'Cancelled' || o.status === 'Arrived') return false;
+    const days = (new Date(o.arrival) - new Date()) / 86400000;
+    return days >= 0 && days <= 30;
+  }).length;
+
+  document.getElementById('stat-revenue').textContent = fmtMoney(revenue);
+  document.getElementById('stat-profit').textContent = fmtMoney(profit);
+  document.getElementById('stat-inv-value').textContent = fmtMoney(invValue);
+  document.getElementById('stat-inv-sub').textContent = DB.inventory.length + ' items';
+  document.getElementById('stat-upcoming').textContent = in30;
+
+  const recent = [...DB.sales].sort((a,b) => b.date.localeCompare(a.date)).slice(0,6);
+  document.getElementById('dash-recent-sales').innerHTML = recent.length ? recent.map(s => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div><strong>${escapeHtml(s.item)}</strong><br><span style="color:var(--text-muted);font-size:11.5px;">${fmtDate(s.date)} · ${escapeHtml(s.platform)}</span></div>
+      <div style="text-align:right;"><strong>${fmtMoney(saleRevenue(s))}</strong><br><span style="color:${saleProfit(s)>=0?'#16a34a':'#dc2626'};font-size:11.5px;">${fmtMoney(saleProfit(s))} profit</span></div>
+    </div>`).join('') : `<div class="empty-state"><p>No sales logged yet.</p></div>`;
+
+  const upcoming = [...DB.orders].filter(o => o.status !== 'Cancelled' && o.status !== 'Arrived')
+    .sort((a,b) => a.arrival.localeCompare(b.arrival)).slice(0,6);
+  document.getElementById('dash-upcoming-orders').innerHTML = upcoming.length ? upcoming.map(o => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div><strong>${escapeHtml(o.item)}</strong><br><span style="color:var(--text-muted);font-size:11.5px;">${escapeHtml(o.supplier)} · arriving ${fmtDate(o.arrival)}</span></div>
+      <div style="text-align:right;">${statusPill(o.status)}<br><span style="font-size:11.5px;">${fmtMoney(o.qty*o.cost)}</span></div>
+    </div>`).join('') : `<div class="empty-state"><p>No upcoming orders.</p></div>`;
+}
+
+function statusPill(status){
+  const map = { Ordered:'pill-blue', Shipped:'pill-yellow', Arrived:'pill-green', Cancelled:'pill-red' };
+  return `<span class="pill ${map[status]||'pill-gray'}">${status}</span>`;
+}
+
+// ---------------------------------------------------------------
+// SALES LOG
+// ---------------------------------------------------------------
+function renderSales(){
+  const revenue = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
+  const cost = DB.sales.reduce((a,s) => a + saleCostTotal(s), 0);
+  const profit = revenue - cost;
+  document.getElementById('sales-revenue').textContent = fmtMoney(revenue);
+  document.getElementById('sales-cost').textContent = fmtMoney(cost);
+  document.getElementById('sales-profit').textContent = fmtMoney(profit);
+  document.getElementById('sales-count').textContent = DB.sales.length;
+
+  const rows = [...DB.sales].sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('sales-list').innerHTML = rows.length ? `
+    <table class="tbl"><thead><tr>
+      <th>Date</th><th>Item</th><th>Qty</th><th>Platform</th><th>Revenue</th><th>Profit</th><th>By</th><th></th>
+    </tr></thead><tbody>
+      ${rows.map(s => `<tr>
+        <td>${fmtDate(s.date)}</td>
+        <td><strong>${escapeHtml(s.item)}</strong><br><span style="color:var(--text-muted);font-size:11px;">${escapeHtml(s.category)}</span></td>
+        <td>${s.qty}</td>
+        <td>${escapeHtml(s.platform)}</td>
+        <td>${fmtMoney(saleRevenue(s))}</td>
+        <td style="color:${saleProfit(s)>=0?'#16a34a':'#dc2626'};font-weight:700;">${fmtMoney(saleProfit(s))}</td>
+        <td style="color:var(--text-muted);font-size:11px;">${escapeHtml((s.loggedBy||'').split('@')[0])}</td>
+        <td><div class="row-actions">
+          <button class="icon-btn" onclick="openSaleModal('${s.id}')">✏️</button>
+          <button class="icon-btn" onclick="deleteSale('${s.id}')">🗑️</button>
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No sales logged yet. Click "+ Log Sale" to add one.</p></div>`;
+}
+
+function openSaleModal(id){
+  document.getElementById('sale-edit-id').value = id || '';
+  document.getElementById('sale-modal-title').textContent = id ? 'Edit Sale' : 'Log Sale';
+  if (id) {
+    const s = DB.sales.find(x => x.id === id);
+    document.getElementById('sale-date').value = s.date;
+    document.getElementById('sale-platform').value = s.platform;
+    document.getElementById('sale-item').value = s.item;
+    document.getElementById('sale-category').value = s.category;
+    document.getElementById('sale-qty').value = s.qty;
+    document.getElementById('sale-price').value = s.price;
+    document.getElementById('sale-cost').value = s.cost;
+    document.getElementById('sale-fee').value = s.fee;
+    document.getElementById('sale-shipping').value = s.shipping;
+    document.getElementById('sale-notes').value = s.notes || '';
+  } else {
+    document.getElementById('sale-date').value = todayISO();
+    document.getElementById('sale-platform').value = 'eBay';
+    document.getElementById('sale-item').value = '';
+    document.getElementById('sale-category').value = 'Booster Box';
+    document.getElementById('sale-qty').value = 1;
+    document.getElementById('sale-price').value = '';
+    document.getElementById('sale-cost').value = '';
+    document.getElementById('sale-fee').value = 0;
+    document.getElementById('sale-shipping').value = 0;
+    document.getElementById('sale-notes').value = '';
+  }
+  computeSalePreview();
+  openModalEl('sale-modal');
+}
+
+function syncSaleItemFromInventory(){
+  const name = document.getElementById('sale-item').value;
+  const item = DB.inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+  if (item) {
+    document.getElementById('sale-category').value = item.category;
+    if (!document.getElementById('sale-cost').value) document.getElementById('sale-cost').value = item.cost;
+  }
+  computeSalePreview();
+}
+
+function computeSalePreview(){
+  const qty = num(document.getElementById('sale-qty').value);
+  const price = num(document.getElementById('sale-price').value);
+  const cost = num(document.getElementById('sale-cost').value);
+  const fee = num(document.getElementById('sale-fee').value);
+  const shipping = num(document.getElementById('sale-shipping').value);
+  const revenue = qty*price;
+  const profit = revenue - qty*cost - fee - shipping;
+  document.getElementById('sale-preview').innerHTML =
+    `Revenue: <strong>${fmtMoney(revenue)}</strong> &nbsp;·&nbsp; Profit: <strong style="color:${profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(profit)}</strong>`;
+}
+
+function saveSale(){
+  const id = document.getElementById('sale-edit-id').value;
+  const item = document.getElementById('sale-item').value.trim();
+  if (!item) { alert('Please enter an item name.'); return; }
+  const qty = num(document.getElementById('sale-qty').value);
+  if (qty <= 0) { alert('Quantity must be at least 1.'); return; }
+
+  const data = {
+    date: document.getElementById('sale-date').value || todayISO(),
+    platform: document.getElementById('sale-platform').value,
+    item, qty,
+    category: document.getElementById('sale-category').value,
+    price: num(document.getElementById('sale-price').value),
+    cost: num(document.getElementById('sale-cost').value),
+    fee: num(document.getElementById('sale-fee').value),
+    shipping: num(document.getElementById('sale-shipping').value),
+    notes: document.getElementById('sale-notes').value.trim(),
+  };
+
+  const invItem = DB.inventory.find(i => i.name.toLowerCase() === item.toLowerCase());
+
+  if (id) {
+    const existing = DB.sales.find(x => x.id === id);
+    Object.assign(existing, data);
+  } else {
+    data.id = uid();
+    data.loggedBy = currentUserEmail();
+    DB.sales.push(data);
+    if (invItem) invItem.qty = Math.max(0, invItem.qty - qty);
+  }
+  closeModal('sale-modal');
+  save();
+}
+
+function deleteSale(id){
+  if (!confirm('Delete this sale?')) return;
+  DB.sales = DB.sales.filter(s => s.id !== id);
+  save();
+}
+
+// ---------------------------------------------------------------
+// INVENTORY
+// ---------------------------------------------------------------
+function renderInventory(){
+  const value = DB.inventory.reduce((a,i) => a + i.qty*i.cost, 0);
+  const units = DB.inventory.reduce((a,i) => a + i.qty, 0);
+  const low = DB.inventory.filter(i => i.qty > 0 && i.qty <= i.threshold).length;
+  const out = DB.inventory.filter(i => i.qty === 0).length;
+  document.getElementById('inv-value').textContent = fmtMoney(value);
+  document.getElementById('inv-units').textContent = units;
+  document.getElementById('inv-items-sub').textContent = DB.inventory.length + ' items';
+  document.getElementById('inv-low').textContent = low;
+  document.getElementById('inv-out').textContent = out;
+
+  const cats = ['All', ...new Set(DB.inventory.map(i => i.category))];
+  document.getElementById('inv-cat-pills').innerHTML = cats.map(c =>
+    `<button class="cat-pill ${c===invCatFilter?'active':''}" onclick="setInvCatFilter('${c}')">${c}</button>`).join('');
+
+  const rows = DB.inventory.filter(i => invCatFilter==='All' || i.category===invCatFilter)
+    .sort((a,b) => a.name.localeCompare(b.name));
+
+  document.getElementById('inventory-list').innerHTML = rows.length ? `
+    <table class="tbl"><thead><tr>
+      <th>Item</th><th>Category</th><th>Qty</th><th>Unit Cost</th><th>Value</th><th>Status</th><th>Supplier</th><th></th>
+    </tr></thead><tbody>
+      ${rows.map(i => `<tr>
+        <td><strong>${escapeHtml(i.name)}</strong></td>
+        <td>${escapeHtml(i.category)}</td>
+        <td>${i.qty}</td>
+        <td>${fmtMoney(i.cost)}</td>
+        <td>${fmtMoney(i.qty*i.cost)}</td>
+        <td>${i.qty===0 ? '<span class="pill pill-red">Out of Stock</span>' : (i.qty<=i.threshold ? '<span class="pill pill-yellow">Low Stock</span>' : '<span class="pill pill-green">In Stock</span>')}</td>
+        <td style="color:var(--text-muted);">${escapeHtml(i.supplier||'—')}</td>
+        <td><div class="row-actions">
+          <button class="icon-btn" onclick="openInventoryModal('${i.id}')">✏️</button>
+          <button class="icon-btn" onclick="deleteInventoryItem('${i.id}')">🗑️</button>
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No inventory items yet. Click "+ Add Item" to add stock.</p></div>`;
+}
+
+function setInvCatFilter(c){ invCatFilter = c; renderInventory(); }
+
+function openInventoryModal(id){
+  document.getElementById('inv-edit-id').value = id || '';
+  document.getElementById('inventory-modal-title').textContent = id ? 'Edit Inventory Item' : 'Add Inventory Item';
+  if (id) {
+    const i = DB.inventory.find(x => x.id === id);
+    document.getElementById('inv-name').value = i.name;
+    document.getElementById('inv-category').value = i.category;
+    document.getElementById('inv-qty').value = i.qty;
+    document.getElementById('inv-cost').value = i.cost;
+    document.getElementById('inv-threshold').value = i.threshold;
+    document.getElementById('inv-supplier').value = i.supplier || '';
+    document.getElementById('inv-notes').value = i.notes || '';
+  } else {
+    document.getElementById('inv-name').value = '';
+    document.getElementById('inv-category').value = 'Booster Box';
+    document.getElementById('inv-qty').value = 0;
+    document.getElementById('inv-cost').value = '';
+    document.getElementById('inv-threshold').value = 0;
+    document.getElementById('inv-supplier').value = '';
+    document.getElementById('inv-notes').value = '';
+  }
+  openModalEl('inventory-modal');
+}
+
+function saveInventoryItem(){
+  const id = document.getElementById('inv-edit-id').value;
+  const name = document.getElementById('inv-name').value.trim();
+  if (!name) { alert('Please enter an item name.'); return; }
+  const data = {
+    name,
+    category: document.getElementById('inv-category').value,
+    qty: num(document.getElementById('inv-qty').value),
+    cost: num(document.getElementById('inv-cost').value),
+    threshold: num(document.getElementById('inv-threshold').value),
+    supplier: document.getElementById('inv-supplier').value.trim(),
+    notes: document.getElementById('inv-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.inventory.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    DB.inventory.push(data);
+  }
+  closeModal('inventory-modal');
+  save();
+}
+
+function deleteInventoryItem(id){
+  if (!confirm('Delete this inventory item?')) return;
+  DB.inventory = DB.inventory.filter(i => i.id !== id);
+  save();
+}
+
+// ---------------------------------------------------------------
+// CASH FLOW  (derived from orders = cash out, sales = cash in)
+// ---------------------------------------------------------------
+function renderCashFlow(){
+  const cashIn = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
+  const cashOut = DB.orders.filter(o => o.status !== 'Cancelled').reduce((a,o) => a + o.qty*o.cost, 0);
+  const pending = DB.orders.filter(o => o.status !== 'Cancelled' && o.status !== 'Arrived').reduce((a,o) => a + o.qty*o.cost, 0);
+
+  document.getElementById('cf-in').textContent = fmtMoney(cashIn);
+  document.getElementById('cf-out').textContent = fmtMoney(cashOut);
+  document.getElementById('cf-net').textContent = fmtMoney(cashIn - cashOut);
+  document.getElementById('cf-pending').textContent = fmtMoney(pending);
+
+  const events = [];
+  DB.orders.filter(o => o.status !== 'Cancelled').forEach(o => events.push({
+    date: o.date, type: 'out', label: `${o.item} × ${o.qty}`, sub: `Paid to ${o.supplier}`, amount: -(o.qty*o.cost)
+  }));
+  DB.sales.forEach(s => events.push({
+    date: s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping)
+  }));
+  events.sort((a,b) => b.date.localeCompare(a.date));
+
+  let running = events.slice().reverse().reduce((acc, e) => { acc += e.amount; e._running = acc; return acc; }, 0);
+  // recompute running balances in chronological order then map back
+  let bal = 0;
+  const chron = [...events].reverse();
+  chron.forEach(e => { bal += e.amount; e._running = bal; });
+
+  document.getElementById('cf-list').innerHTML = events.length ? `
+    <table class="tbl"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Balance</th></tr></thead><tbody>
+      ${events.map(e => `<tr>
+        <td>${fmtDate(e.date)}</td>
+        <td><strong>${escapeHtml(e.label)}</strong><br><span style="color:var(--text-muted);font-size:11px;">${escapeHtml(e.sub)}</span></td>
+        <td>${e.type==='in' ? '<span class="pill pill-green">Cash In</span>' : '<span class="pill pill-red">Cash Out</span>'}</td>
+        <td style="color:${e.amount>=0?'#16a34a':'#dc2626'};font-weight:700;">${e.amount>=0?'+':''}${fmtMoney(e.amount)}</td>
+        <td>${fmtMoney(e._running)}</td>
+      </tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No cash flow activity yet.</p></div>`;
+}
+
+// ---------------------------------------------------------------
+// SUPPLIER CALENDAR
+// ---------------------------------------------------------------
+function changeCalMonth(delta){
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+delta, 1);
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  document.getElementById('cal-month-label').textContent = calMonth.toLocaleString('default',{month:'long', year:'numeric'});
+
+  const firstDow = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const todayStr = todayISO();
+
+  const byDate = {};
+  DB.orders.forEach(o => {
+    if (o.status !== 'Cancelled') {
+      (byDate[o.date] = byDate[o.date] || []).push({type:'order', o});
+      (byDate[o.arrival] = byDate[o.arrival] || []).push({type:'arrival', o});
+    }
+  });
+
+  const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i=0; i<firstDow; i++) html += `<div class="cal-cell empty"></div>`;
+  for (let d=1; d<=daysInMonth; d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const events = byDate[dateStr] || [];
+    html += `<div class="cal-cell ${dateStr===todayStr?'today':''}">
+      <div class="cal-date">${d}</div>
+      ${events.map(e => `<span class="cal-badge" style="background:${e.type==='order'?'#3b4cca':'#e3350d'};" title="${escapeHtml(e.o.item)}">${e.type==='order'?'📤':'📦'} ${escapeHtml(e.o.item)}</span>`).join('')}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+
+  const rows = [...DB.orders].sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('orders-list').innerHTML = rows.length ? `
+    <table class="tbl"><thead><tr>
+      <th>Item</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Order Date</th><th>Arrival</th><th>Status</th><th></th>
+    </tr></thead><tbody>
+      ${rows.map(o => `<tr>
+        <td><strong>${escapeHtml(o.item)}</strong></td>
+        <td>${escapeHtml(o.supplier)}</td>
+        <td>${o.qty}</td>
+        <td>${fmtMoney(o.qty*o.cost)}</td>
+        <td>${fmtDate(o.date)}</td>
+        <td>${fmtDate(o.arrival)}</td>
+        <td>${statusPill(o.status)}</td>
+        <td><div class="row-actions">
+          ${o.status!=='Arrived' && o.status!=='Cancelled' ? `<button class="icon-btn" title="Mark arrived + add to inventory" onclick="markOrderArrived('${o.id}')">📥</button>` : ''}
+          <button class="icon-btn" onclick="openOrderModal('${o.id}')">✏️</button>
+          <button class="icon-btn" onclick="deleteOrder('${o.id}')">🗑️</button>
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No supplier orders yet. Click "+ Add Order" to plan a restock.</p></div>`;
+}
+
+function openOrderModal(id, defaultDate){
+  document.getElementById('order-edit-id').value = id || '';
+  document.getElementById('order-modal-title').textContent = id ? 'Edit Supplier Order' : 'Add Supplier Order';
+  if (id) {
+    const o = DB.orders.find(x => x.id === id);
+    document.getElementById('order-supplier').value = o.supplier;
+    document.getElementById('order-item').value = o.item;
+    document.getElementById('order-qty').value = o.qty;
+    document.getElementById('order-cost').value = o.cost;
+    document.getElementById('order-date').value = o.date;
+    document.getElementById('order-arrival').value = o.arrival;
+    document.getElementById('order-status').value = o.status;
+    document.getElementById('order-notes').value = o.notes || '';
+  } else {
+    document.getElementById('order-supplier').value = '';
+    document.getElementById('order-item').value = '';
+    document.getElementById('order-qty').value = 1;
+    document.getElementById('order-cost').value = '';
+    document.getElementById('order-date').value = defaultDate || todayISO();
+    document.getElementById('order-arrival').value = defaultDate || todayISO();
+    document.getElementById('order-status').value = 'Ordered';
+    document.getElementById('order-notes').value = '';
+  }
+  openModalEl('order-modal');
+}
+
+function saveOrder(){
+  const id = document.getElementById('order-edit-id').value;
+  const item = document.getElementById('order-item').value.trim();
+  const supplier = document.getElementById('order-supplier').value.trim();
+  if (!item || !supplier) { alert('Please enter both a supplier and an item.'); return; }
+  const data = {
+    supplier, item,
+    qty: num(document.getElementById('order-qty').value),
+    cost: num(document.getElementById('order-cost').value),
+    date: document.getElementById('order-date').value || todayISO(),
+    arrival: document.getElementById('order-arrival').value || todayISO(),
+    status: document.getElementById('order-status').value,
+    notes: document.getElementById('order-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.orders.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    data.loggedBy = currentUserEmail();
+    DB.orders.push(data);
+  }
+  closeModal('order-modal');
+  save();
+}
+
+function deleteOrder(id){
+  if (!confirm('Delete this order?')) return;
+  DB.orders = DB.orders.filter(o => o.id !== id);
+  save();
+}
+
+function markOrderArrived(id){
+  const o = DB.orders.find(x => x.id === id);
+  if (!o) return;
+  o.status = 'Arrived';
+  let item = DB.inventory.find(i => i.name.toLowerCase() === o.item.toLowerCase());
+  if (item) {
+    item.qty += o.qty;
+    item.cost = o.cost;
+  } else {
+    DB.inventory.push({ id: uid(), name: o.item, category: 'Other', qty: o.qty, cost: o.cost, threshold: 0, supplier: o.supplier, notes: '' });
+  }
+  save();
+}
+
+// ---------------------------------------------------------------
+// ANALYTICS
+// ---------------------------------------------------------------
+function renderAnalytics(){
+  const picker = document.getElementById('month-picker');
+  if (!picker.value) picker.value = todayISO().slice(0,7);
+  const month = picker.value;
+
+  const monthSales = DB.sales.filter(s => s.date.slice(0,7) === month);
+  const mRevenue = monthSales.reduce((a,s) => a + saleRevenue(s), 0);
+  const mCost = monthSales.reduce((a,s) => a + saleCostTotal(s), 0);
+  const mProfit = mRevenue - mCost;
+  document.getElementById('month-summary').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${fmtMoney(mRevenue)}</div><div class="stat-label">Revenue</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(mCost)}</div><div class="stat-label">Cost + Fees</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:${mProfit>=0?'#16a34a':'#dc2626'};">${fmtMoney(mProfit)}</div><div class="stat-label">Profit</div></div>
+    <div class="stat-card"><div class="stat-value">${monthSales.length}</div><div class="stat-label">Sales</div></div>`;
+
+  const totalRevenue = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
+  const totalCost = DB.sales.reduce((a,s) => a + saleCostTotal(s), 0);
+  const margin = totalRevenue ? ((totalRevenue-totalCost)/totalRevenue*100) : 0;
+  const avgSale = DB.sales.length ? totalRevenue/DB.sales.length : 0;
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${margin.toFixed(1)}%</div><div class="stat-label">Profit Margin</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(avgSale)}</div><div class="stat-label">Avg Sale Value</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-value">${DB.sales.reduce((a,s)=>a+s.qty,0)}</div><div class="stat-label">Units Sold</div><div class="stat-sub">All time</div></div>`;
+
+  // Revenue by product
+  const byProduct = {};
+  DB.sales.forEach(s => {
+    const k = s.item;
+    byProduct[k] = byProduct[k] || {units:0, revenue:0, profit:0};
+    byProduct[k].units += s.qty;
+    byProduct[k].revenue += saleRevenue(s);
+    byProduct[k].profit += saleProfit(s);
+  });
+  const productRows = Object.entries(byProduct).sort((a,b) => b[1].revenue - a[1].revenue);
+  document.getElementById('an-product-table').innerHTML = productRows.length ? `
+    <table class="tbl"><thead><tr><th>Product</th><th>Units</th><th>Revenue</th><th>Profit</th></tr></thead><tbody>
+      ${productRows.map(([name,d]) => `<tr><td>${escapeHtml(name)}</td><td>${d.units}</td><td>${fmtMoney(d.revenue)}</td><td style="color:${d.profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(d.profit)}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No sales yet.</p></div>`;
+
+  // Revenue by platform
+  const byPlatform = {};
+  DB.sales.forEach(s => {
+    const k = s.platform;
+    byPlatform[k] = byPlatform[k] || {units:0, revenue:0, fees:0};
+    byPlatform[k].units += s.qty;
+    byPlatform[k].revenue += saleRevenue(s);
+    byPlatform[k].fees += num(s.fee);
+  });
+  const platformRows = Object.entries(byPlatform).sort((a,b) => b[1].revenue - a[1].revenue);
+  document.getElementById('an-platform-table').innerHTML = platformRows.length ? `
+    <table class="tbl"><thead><tr><th>Platform</th><th>Units</th><th>Revenue</th><th>Fees Paid</th></tr></thead><tbody>
+      ${platformRows.map(([name,d]) => `<tr><td>${escapeHtml(name)}</td><td>${d.units}</td><td>${fmtMoney(d.revenue)}</td><td>${fmtMoney(d.fees)}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No sales yet.</p></div>`;
+
+  // Monthly performance (last 6 months)
+  const months = [];
+  const base = new Date(month+'-01T00:00:00');
+  for (let i=5; i>=0; i--) {
+    const d = new Date(base.getFullYear(), base.getMonth()-i, 1);
+    months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  document.getElementById('an-monthly-table').innerHTML = `
+    <table class="tbl"><thead><tr><th>Month</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Margin</th></tr></thead><tbody>
+      ${months.map(mk => {
+        const s = DB.sales.filter(x => x.date.slice(0,7) === mk);
+        const rev = s.reduce((a,x) => a+saleRevenue(x), 0);
+        const cost = s.reduce((a,x) => a+saleCostTotal(x), 0);
+        const prof = rev-cost;
+        const marg = rev ? (prof/rev*100) : 0;
+        const label = new Date(mk+'-01T00:00:00').toLocaleString('default',{month:'short',year:'numeric'});
+        return `<tr><td>${label}</td><td>${fmtMoney(rev)}</td><td>${fmtMoney(cost)}</td><td style="color:${prof>=0?'#16a34a':'#dc2626'};">${fmtMoney(prof)}</td><td>${marg.toFixed(1)}%</td></tr>`;
+      }).join('')}
+    </tbody></table>`;
+
+  // Inventory intelligence
+  const lowStock = DB.inventory.filter(i => i.qty > 0 && i.qty <= i.threshold);
+  const outStock = DB.inventory.filter(i => i.qty === 0);
+  const totalValue = DB.inventory.reduce((a,i) => a+i.qty*i.cost, 0);
+  document.getElementById('an-inventory-intel').innerHTML = `
+    <div class="insight-grid">
+      <div class="insight"><strong>${fmtMoney(totalValue)}</strong><br>Total inventory value</div>
+      <div class="insight"><strong>${DB.inventory.length}</strong><br>Distinct items tracked</div>
+      <div class="insight"><strong style="color:#b45309;">${lowStock.length}</strong><br>Low stock items ${lowStock.length ? '— ' + lowStock.map(i=>escapeHtml(i.name)).join(', ') : ''}</div>
+      <div class="insight"><strong style="color:#b91c1c;">${outStock.length}</strong><br>Out of stock items ${outStock.length ? '— ' + outStock.map(i=>escapeHtml(i.name)).join(', ') : ''}</div>
+    </div>`;
+}
+
+// ---------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------
+loadLocal();
+</script>
+
+<!-- ============================================================
+     CLOUD SYNC (Firebase Auth + Firestore) — shared workspace
+============================================================ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// ============================================================
+// PASTE YOUR FIREBASE CONFIG HERE
+// (Firebase Console → Project Settings → General → Your apps → SDK setup and configuration)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+// Both partners' data lives in this single shared document — see firestore.rules
+const WORKSPACE_DOC = 'pokemon-business';
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let _unsubscribe = null;
+let _applyingRemote = false;
+let _syncTimer = null;
+
+function setStatus(text) {
+  const el = document.getElementById('sync-status');
+  if (el) el.textContent = text;
+}
+
+window.authSignup = async function() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = 'Please enter an email and password.'; errEl.style.display=''; return; }
+  try {
+    await createUserWithEmailAndPassword(auth, email, pw);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = '';
+  }
+};
+
+window.authLogin = async function() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = 'Please enter an email and password.'; errEl.style.display=''; return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = '';
+  }
+};
+
+window.authLogout = async function() {
+  if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+  await signOut(auth);
+  location.reload();
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    return;
+  }
+  window._authEmail = user.email;
+  document.getElementById('auth-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('current-user-email').textContent = user.email;
+  setStatus('Syncing…');
+
+  const ref = doc(db, 'workspaces', WORKSPACE_DOC);
+  try {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      // First login for this workspace — push whatever's on this device (usually empty)
+      await setDoc(ref, window.getDBSnapshot());
+      setStatus('Synced ✓');
+    } else {
+      _applyingRemote = true;
+      window.applyRemoteUpdate(snap.data());
+      _applyingRemote = false;
+      setStatus('Synced ✓');
+    }
+  } catch (e) {
+    console.error('Initial sync failed:', e);
+    setStatus('Sync error — using local data');
+  }
+
+  // Real-time listener — picks up changes made by your business partner
+  _unsubscribe = onSnapshot(ref, (docSnap) => {
+    if (!docSnap.exists() || _applyingRemote) return;
+    if (docSnap.metadata.hasPendingWrites) return; // ignore echo of our own write
+    _applyingRemote = true;
+    window.applyRemoteUpdate(docSnap.data());
+    _applyingRemote = false;
+    setStatus('Synced ✓');
+  });
+});
+
+// Called by the main app's save() — debounced push to Firestore
+window.cloudSync = function() {
+  if (_applyingRemote) return;
+  setStatus('Syncing…');
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => {
+    const snapshot = window.getDBSnapshot();
+    setDoc(doc(db, 'workspaces', WORKSPACE_DOC), snapshot)
+      .then(() => setStatus('Synced ✓'))
+      .catch(e => {
+        console.error('Cloud sync failed:', e);
+        setStatus('Sync error — saved locally');
+      });
+  }, 1200);
+};
+</script>
+</body>
+</html>

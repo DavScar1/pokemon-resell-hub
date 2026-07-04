@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only the two business partners can read/write the shared workspace doc.
+    // Add or change emails here if the team changes.
+    match /workspaces/pokemon-business {
+      allow read, write: if request.auth != null &&
+        request.auth.token.email in [
+          'davide.scaringella1@gmail.com',
+          'danielliu581@gmail.com'
+        ];
+    }
+  }
+}
