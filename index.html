@@ -80,6 +80,8 @@ input,select,textarea{font-family:inherit;color-scheme:dark;}
 .form-group{margin-bottom:12px;}
 .form-group label{display:block;font-size:11.5px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
 .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13.5px;background:rgba(255,255,255,.03);color:var(--text);transition:border-color .15s,box-shadow .15s;}
+.form-group select{background:var(--bg-elevated);}
+.form-group select option{background:var(--bg-elevated);color:var(--text);}
 .form-group input::placeholder,.form-group textarea::placeholder{color:var(--text-muted);}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(34,211,238,.15);}
 
@@ -379,7 +381,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
         <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Sold, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">Confirmed &amp; received</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Net Position</div><div class="stat-sub">In − Out</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
       </div>
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
@@ -1014,8 +1016,13 @@ function renderCashFlow(){
 
   const receivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
+  // "Cash In" = net proceeds actually deposited (revenue minus platform fees/shipping) — a cash-timing figure.
+  // It intentionally does NOT subtract cost of goods, since that cost was already paid out separately
+  // via the linked order's Cash Out. Real profit is tracked independently below (totalProfit), using
+  // each sale's own recorded cost — this stays correct even for sales with no linked order.
   const cashIn = receivedSales.reduce((a,s) => a + saleNet(s), 0);
   const awaiting = pendingSales.reduce((a,s) => a + saleNet(s), 0);
+  const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1023,7 +1030,7 @@ function renderCashFlow(){
   document.getElementById('cf-onhand').textContent = fmtMoney(onHandValue);
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-in').textContent = fmtMoney(cashIn);
-  document.getElementById('cf-net').textContent = fmtMoney(cashIn - cashOut);
+  document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
