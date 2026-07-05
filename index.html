@@ -373,6 +373,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
       </div>
 
       <div class="cf-kpis" style="margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-value" id="cf-planned">$0</div><div class="stat-label">Planned</div><div class="stat-sub">Not yet ordered</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-transit">$0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
@@ -982,9 +983,10 @@ function toggleCfCompleted(){ cfShowCompleted = !cfShowCompleted; renderCashFlow
 
 function orderMiniPipeline(o, stage){
   const soldQty = orderSoldQty(o);
+  const notYetArrived = stage==='ordered' || stage==='notyet';
   const steps = [
-    {icon:'💸', label:'Ordered',  done: true,                         date: fmtDate(o.date)},
-    {icon:'📦', label:'Arrived',  done: stage!=='ordered',             date: stage==='ordered' ? `est. ${fmtDate(o.arrival)}` : fmtDate(o.arrival)},
+    {icon:'💸', label:'Ordered',  done: stage!=='notyet',              date: stage==='notyet' ? `plans for ${fmtDate(o.date)}` : fmtDate(o.date)},
+    {icon:'📦', label:'Arrived',  done: !notYetArrived,                date: notYetArrived ? `est. ${fmtDate(o.arrival)}` : fmtDate(o.arrival)},
     {icon:'🛍', label:'Sold',     done: stage==='sold'||stage==='complete', date: `${soldQty}/${o.qty}`},
     {icon:'✅', label:'Complete', done: stage==='complete',            date: stage==='complete' ? 'Paid' : '—'},
   ];
@@ -998,12 +1000,15 @@ function renderCashFlow(){
   const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled');
   const staged = nonCancelled.map(o => ({ o, stage: orderStage(o) }));
 
+  const notYet   = staged.filter(x => x.stage === 'notyet');
   const ordered  = staged.filter(x => x.stage === 'ordered');
   const arrived  = staged.filter(x => x.stage === 'arrived');
   const sold     = staged.filter(x => x.stage === 'sold');
   const complete = staged.filter(x => x.stage === 'complete');
 
-  const cashOut = nonCancelled.reduce((a,o) => a + o.qty*o.cost, 0);
+  const placedOrders = staged.filter(x => x.stage !== 'notyet');
+  const plannedValue = notYet.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
+  const cashOut = placedOrders.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
   const transitValue = ordered.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
   const onHandValue = arrived.reduce((a,x) => a + (x.o.qty - orderSoldQty(x.o))*x.o.cost, 0);
 
@@ -1012,6 +1017,7 @@ function renderCashFlow(){
   const cashIn = receivedSales.reduce((a,s) => a + saleNet(s), 0);
   const awaiting = pendingSales.reduce((a,s) => a + saleNet(s), 0);
 
+  document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
   document.getElementById('cf-transit').textContent = fmtMoney(transitValue);
   document.getElementById('cf-onhand').textContent = fmtMoney(onHandValue);
@@ -1021,6 +1027,13 @@ function renderCashFlow(){
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
+    <div class="cf-stage">
+      <div class="cf-stage-icon" style="background:rgba(139,92,246,.12);color:var(--accent2);">🗓️</div>
+      <div class="cf-stage-label">Not Yet Ordered</div>
+      <div class="cf-stage-value">${fmtMoney(plannedValue)}</div>
+      <div class="cf-stage-sub">${notYet.length} planned</div>
+    </div>
+    <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--red-light);color:var(--red);">💸</div>
       <div class="cf-stage-label">Ordered</div>
@@ -1054,16 +1067,18 @@ function renderCashFlow(){
   toggleBtn.textContent = cfShowCompleted ? 'Hide completed' : `Show ${complete.length} completed`;
   toggleBtn.style.display = complete.length ? '' : 'none';
 
-  const stageOrder = {ordered:0, arrived:1, sold:2, complete:3};
+  const stageOrder = {notyet:0, ordered:1, arrived:2, sold:3, complete:4};
   let visible = cfShowCompleted ? staged : staged.filter(x => x.stage !== 'complete');
-  visible = visible.slice().sort((a,b) => stageOrder[a.stage] - stageOrder[b.stage] || a.o.arrival.localeCompare(b.o.arrival));
+  visible = visible.slice().sort((a,b) => stageOrder[a.stage] - stageOrder[b.stage] || a.o.date.localeCompare(b.o.date));
 
   document.getElementById('cf-orders').innerHTML = visible.length ? visible.map(({o, stage}) => {
     const meta = ORDER_STAGE_META[stage];
     const soldQty = orderSoldQty(o);
     const remaining = o.qty - soldQty;
     let action = '';
-    if (stage === 'ordered') {
+    if (stage === 'notyet') {
+      action = `<div class="cf-card-sub" style="margin-top:12px;">Becomes "Ordered" automatically on ${fmtDate(o.date)}.</div>`;
+    } else if (stage === 'ordered') {
       action = `<button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>`;
     } else if (stage === 'arrived') {
       action = `<button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="openSaleModal(null,'${escapeHtml(o.item)}','${o.id}')">+ Log Sale (${remaining} left)</button>`;
@@ -1086,9 +1101,9 @@ function renderCashFlow(){
 
   // ---- Full ledger ----
   const events = [];
-  nonCancelled.forEach(o => events.push({
+  placedOrders.forEach(x => { const o = x.o; events.push({
     date: o.date, type: 'out', label: `${o.item} × ${o.qty}`, sub: `Paid to ${o.supplier}`, amount: -(o.qty*o.cost), realized: true
-  }));
+  }); });
   receivedSales.forEach(s => events.push({
     date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleNet(s), realized: true
   }));
@@ -1153,22 +1168,22 @@ function renderCalendar(){
   const rows = [...DB.orders].sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('orders-list').innerHTML = rows.length ? `
     <table class="tbl"><thead><tr>
-      <th>Item</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Order Date</th><th>Arrival</th><th>Status</th><th></th>
+      <th>Item</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Order Date</th><th>Arrival</th><th>Stage</th><th></th>
     </tr></thead><tbody>
-      ${rows.map(o => `<tr>
+      ${rows.map(o => { const meta = ORDER_STAGE_META[orderStage(o)]; return `<tr>
         <td><strong>${escapeHtml(o.item)}</strong></td>
         <td>${escapeHtml(o.supplier)}</td>
         <td>${o.qty}</td>
         <td>${fmtMoney(o.qty*o.cost)}</td>
         <td>${fmtDate(o.date)}</td>
         <td>${fmtDate(o.arrival)}</td>
-        <td>${statusPill(o.status)}</td>
+        <td><span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span></td>
         <td><div class="row-actions">
           ${o.status!=='Arrived' && o.status!=='Cancelled' ? `<button class="icon-btn" title="Mark arrived + add to inventory" onclick="markOrderArrived('${o.id}')">📥</button>` : ''}
           <button class="icon-btn" onclick="openOrderModal('${o.id}')">✏️</button>
           <button class="icon-btn" onclick="deleteOrder('${o.id}')">🗑️</button>
         </div></td>
-      </tr>`).join('')}
+      </tr>`; }).join('')}
     </tbody></table>` : `<div class="empty-state"><p>No supplier orders yet. Click "+ Add Order" to plan a restock.</p></div>`;
 }
 
@@ -1252,7 +1267,7 @@ function orderSoldQty(o){
 
 function orderStage(o){
   if (o.status === 'Cancelled') return 'cancelled';
-  if (o.status !== 'Arrived') return 'ordered';
+  if (o.status !== 'Arrived') return (o.date > todayISO()) ? 'notyet' : 'ordered';
   const sold = orderSoldQty(o);
   if (sold < o.qty) return 'arrived';
   const linked = DB.sales.filter(s => s.orderId === o.id);
@@ -1261,10 +1276,12 @@ function orderStage(o){
 }
 
 const ORDER_STAGE_META = {
-  ordered:  {label:'Ordered',  icon:'💸', bg:'var(--red-light)',    color:'var(--red)',    step:0},
-  arrived:  {label:'Arrived',  icon:'📦', bg:'var(--blue-light)',   color:'var(--blue)',   step:1},
-  sold:     {label:'Sold',     icon:'🛍', bg:'var(--yellow-light)', color:'var(--yellow)', step:2},
-  complete: {label:'Complete', icon:'✅', bg:'var(--green-light)',  color:'var(--green)',  step:3},
+  notyet:    {label:'Not Yet Ordered', icon:'🗓️', bg:'rgba(139,92,246,.12)', color:'var(--accent2)', step:-1},
+  ordered:   {label:'Ordered',  icon:'💸', bg:'var(--red-light)',    color:'var(--red)',    step:0},
+  arrived:   {label:'Arrived',  icon:'📦', bg:'var(--blue-light)',   color:'var(--blue)',   step:1},
+  sold:      {label:'Sold',     icon:'🛍', bg:'var(--yellow-light)', color:'var(--yellow)', step:2},
+  complete:  {label:'Complete', icon:'✅', bg:'var(--green-light)',  color:'var(--green)',  step:3},
+  cancelled: {label:'Cancelled',icon:'✕',  bg:'rgba(148,163,184,.1)', color:'var(--text-secondary)', step:-2},
 };
 
 function markOrderAllCashReceived(orderId){
