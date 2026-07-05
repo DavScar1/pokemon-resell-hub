@@ -381,7 +381,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
         <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-netcash">$0</div><div class="stat-label">Net Cash</div><div class="stat-sub">Received − paid to suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-balance">$0</div><div class="stat-label">Current Balance</div><div class="stat-sub">Profit banked − paid to suppliers</div></div>
       </div>
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
@@ -556,7 +556,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
     </div>
     <div class="form-group"><label>Status</label>
       <select id="order-status">
-        <option>Ordered</option><option>Arrived</option><option>Cancelled</option>
+        <option>Not Ordered</option><option>Ordered</option><option>Arrived</option><option>Cancelled</option>
       </select>
     </div>
     <div class="form-group"><label>Notes</label><textarea id="order-notes" rows="2"></textarea></div>
@@ -1017,11 +1017,9 @@ function renderCashFlow(){
   // sale's own recorded cost, so it stays correct regardless of whether it's linked to a tracked order.
   const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
   const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
-  // Net Cash = literal money movement — gross proceeds actually deposited (not re-subtracting cost,
-  // since that already left the bank via Cash Out) minus everything paid to suppliers. This can run
-  // lower than Profit whenever cash is tied up in stock that hasn't sold yet.
-  const grossReceived = receivedSales.reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
-  const netCash = grossReceived - cashOut;
+  // Current Balance mirrors the ledger's own running total: all profit banked so far minus
+  // everything ever paid to suppliers (including money still tied up in unsold stock).
+  const currentBalance = totalProfit - cashOut;
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1029,7 +1027,7 @@ function renderCashFlow(){
   document.getElementById('cf-onhand').textContent = fmtMoney(onHandValue);
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
-  document.getElementById('cf-netcash').textContent = fmtMoney(netCash);
+  document.getElementById('cf-balance').textContent = fmtMoney(currentBalance);
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
@@ -1083,7 +1081,9 @@ function renderCashFlow(){
     const remaining = o.qty - soldQty;
     let action = '';
     if (stage === 'notyet') {
-      action = `<div class="cf-card-sub" style="margin-top:12px;">Becomes "Ordered" automatically on ${fmtDate(o.date)}.</div>`;
+      action = o.status === 'Not Ordered'
+        ? `<button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderPlaced('${o.id}')">Mark as Ordered</button>`
+        : `<div class="cf-card-sub" style="margin-top:12px;">Becomes "Ordered" automatically on ${fmtDate(o.date)}.</div>`;
     } else if (stage === 'ordered') {
       action = `<button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>`;
     } else if (stage === 'arrived') {
@@ -1250,6 +1250,13 @@ function deleteOrder(id){
   save();
 }
 
+function markOrderPlaced(id){
+  const o = DB.orders.find(x => x.id === id);
+  if (!o) return;
+  o.status = 'Ordered';
+  save();
+}
+
 function markOrderArrived(id){
   const o = DB.orders.find(x => x.id === id);
   if (!o) return;
@@ -1273,6 +1280,7 @@ function orderSoldQty(o){
 
 function orderStage(o){
   if (o.status === 'Cancelled') return 'cancelled';
+  if (o.status === 'Not Ordered') return 'notyet';
   if (o.status !== 'Arrived') return (o.date > todayISO()) ? 'notyet' : 'ordered';
   const sold = orderSoldQty(o);
   if (sold < o.qty) return 'arrived';
