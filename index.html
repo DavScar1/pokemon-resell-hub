@@ -6,7 +6,7 @@
 <title>Pokémon Resell Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f3f4f8;
@@ -39,7 +39,7 @@
 html{background:var(--bg);}
 body{
   margin:0;
-  font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   background:
     radial-gradient(ellipse 1000px 560px at 12% -8%, rgba(124,58,237,.06), transparent 60%),
     radial-gradient(ellipse 1000px 620px at 108% 8%, rgba(8,145,178,.05), transparent 60%),
@@ -309,9 +309,9 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="page active" id="page-dashboard">
       <div class="page-header"><h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</h2><p>Your business at a glance — revenue, profit, stock and upcoming orders.</p></div>
       <div class="grid-4" style="margin-bottom:20px;">
-        <div class="stat-card"><div class="stat-value" id="stat-revenue">$0</div><div class="stat-label">Total Revenue</div><div class="stat-sub">All time</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-profit">$0</div><div class="stat-label">Total Profit</div><div class="stat-sub">All time</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-inv-value">$0</div><div class="stat-label">Inventory Value</div><div class="stat-sub" id="stat-inv-sub">0 items</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-revenue">€0</div><div class="stat-label">Total Revenue</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-profit">€0</div><div class="stat-label">Total Profit</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-inv-value">€0</div><div class="stat-label">Inventory Value</div><div class="stat-sub" id="stat-inv-sub">0 items</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-upcoming">0</div><div class="stat-label">Upcoming Orders</div><div class="stat-sub">Next 30 days</div></div>
       </div>
       <div class="grid-2" style="align-items:start;">
@@ -336,9 +336,9 @@ table.tbl tr:hover{background:#f7f8fb;}
         <button class="btn btn-primary" onclick="openSaleModal()">+ Log Sale</button>
       </div>
       <div class="grid-4" style="margin-bottom:18px;">
-        <div class="stat-card"><div class="stat-value" id="sales-revenue">$0</div><div class="stat-label">Revenue</div><div class="stat-sub">All time</div></div>
-        <div class="stat-card"><div class="stat-value" id="sales-cost">$0</div><div class="stat-label">Cost + Fees</div><div class="stat-sub">All time</div></div>
-        <div class="stat-card"><div class="stat-value" id="sales-profit">$0</div><div class="stat-label">Profit</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-revenue">€0</div><div class="stat-label">Revenue</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-cost">€0</div><div class="stat-label">Cost + Fees</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-profit">€0</div><div class="stat-label">Profit</div><div class="stat-sub">All time</div></div>
         <div class="stat-card"><div class="stat-value" id="sales-count">0</div><div class="stat-label">Sales Logged</div><div class="stat-sub">All time</div></div>
       </div>
       <div class="card"><div id="sales-list"></div></div>
@@ -354,7 +354,7 @@ table.tbl tr:hover{background:#f7f8fb;}
         <button class="btn btn-primary" onclick="openInventoryModal()">+ Add Item</button>
       </div>
       <div class="grid-4" style="margin-bottom:18px;">
-        <div class="stat-card"><div class="stat-value" id="inv-value">$0</div><div class="stat-label">Total Value</div><div class="stat-sub">Stock × unit cost</div></div>
+        <div class="stat-card"><div class="stat-value" id="inv-value">€0</div><div class="stat-label">Total Value</div><div class="stat-sub">Stock × unit cost</div></div>
         <div class="stat-card"><div class="stat-value" id="inv-units">0</div><div class="stat-label">Units in Stock</div><div class="stat-sub" id="inv-items-sub">0 items</div></div>
         <div class="stat-card"><div class="stat-value" id="inv-low">0</div><div class="stat-label">Low Stock</div><div class="stat-sub">At or below reorder point</div></div>
         <div class="stat-card"><div class="stat-value" id="inv-out">0</div><div class="stat-label">Out of Stock</div><div class="stat-sub">0 units left</div></div>
@@ -375,13 +375,13 @@ table.tbl tr:hover{background:#f7f8fb;}
       </div>
 
       <div class="cf-kpis" style="margin-bottom:20px;">
-        <div class="stat-card"><div class="stat-value" id="cf-planned">$0</div><div class="stat-label">Planned</div><div class="stat-sub">Not yet ordered</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-transit">$0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-balance">$0</div><div class="stat-label">Current Balance</div><div class="stat-sub">Profit banked − paid to suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-planned">€0</div><div class="stat-label">Planned</div><div class="stat-sub">Not yet ordered</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-out">€0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-transit">€0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-onhand">€0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-awaiting">€0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-net">€0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-balance">€0</div><div class="stat-label">Current Balance</div><div class="stat-sub">Profit banked − paid to suppliers</div></div>
       </div>
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
@@ -495,12 +495,12 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="form-group"><label>Quantity Sold</label><input type="number" id="sale-qty" min="1" value="1" oninput="computeSalePreview()"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Unit Sale Price ($)</label><input type="number" id="sale-price" min="0" step="0.01" oninput="computeSalePreview()"></div>
-      <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="sale-cost" min="0" step="0.01" oninput="computeSalePreview()"></div>
+      <div class="form-group"><label>Unit Sale Price (€)</label><input type="number" id="sale-price" min="0" step="0.01" oninput="computeSalePreview()"></div>
+      <div class="form-group"><label>Unit Cost (€)</label><input type="number" id="sale-cost" min="0" step="0.01" oninput="computeSalePreview()"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Platform Fees ($)</label><input type="number" id="sale-fee" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
-      <div class="form-group"><label>Shipping Cost ($)</label><input type="number" id="sale-shipping" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
+      <div class="form-group"><label>Platform Fees (€)</label><input type="number" id="sale-fee" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
+      <div class="form-group"><label>Shipping Cost (€)</label><input type="number" id="sale-shipping" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
     </div>
     <div class="form-group"><label>Notes</label><textarea id="sale-notes" rows="2" placeholder="Buyer, condition, etc."></textarea></div>
     <div class="insight" id="sale-preview" style="margin-top:4px;"></div>
@@ -527,7 +527,7 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="form-group"><label>Quantity on Hand</label><input type="number" id="inv-qty" min="0" value="0"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="inv-cost" min="0" step="0.01"></div>
+      <div class="form-group"><label>Unit Cost (€)</label><input type="number" id="inv-cost" min="0" step="0.01"></div>
       <div class="form-group"><label>Reorder Threshold</label><input type="number" id="inv-threshold" min="0" value="0"></div>
     </div>
     <div class="form-group"><label>Supplier</label><input type="text" id="inv-supplier" placeholder="e.g. Pokémon Center, Costco"></div>
@@ -548,7 +548,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="form-group"><label>Item</label><input type="text" id="order-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box"></div>
     <div class="form-row">
       <div class="form-group"><label>Quantity</label><input type="number" id="order-qty" min="1" value="1"></div>
-      <div class="form-group"><label>Unit Cost ($)</label><input type="number" id="order-cost" min="0" step="0.01"></div>
+      <div class="form-group"><label>Unit Cost (€)</label><input type="number" id="order-cost" min="0" step="0.01"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Order Date</label><input type="date" id="order-date"></div>
@@ -614,8 +614,8 @@ window.applyRemoteUpdate = (data) => {
 // ---------------------------------------------------------------
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function todayISO(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function fmtMoney(n){ n = Number(n)||0; return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function fmtDate(iso){ if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${m}/${d}/${y}`; }
+function fmtMoney(n){ n = Number(n)||0; return '€' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(iso){ if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 function num(v){ return Number(v) || 0; }
 function currentUserEmail(){ return (window._authEmail) || ''; }
 
