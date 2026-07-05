@@ -223,6 +223,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
 .cf-mini-step.done{color:var(--green);}
 .cf-mini-step small{display:block;color:var(--text-muted);font-size:10px;margin-top:2px;}
 .cf-mini-line{height:2px;width:20px;background:var(--border);flex-shrink:0;}
+.cf-mini-line.done{background:var(--green);}
 .pay-pill{cursor:pointer;border:none;font-family:inherit;}
 .pay-pill.pending:hover{background:rgba(251,191,36,.22);}
 
@@ -374,7 +375,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
       <div class="cf-kpis" style="margin-bottom:20px;">
         <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-transit">$0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Stock On Hand</div><div class="stat-sub">Arrived, not sold</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Sold, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">Confirmed &amp; received</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Net Position</div><div class="stat-sub">In − Out</div></div>
@@ -382,14 +383,11 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
 
-      <div class="cf-section-title">🚚 Orders In Progress</div>
-      <div class="cf-cards-grid" id="cf-orders-inprogress"></div>
-
-      <div class="cf-section-title">📦 Stock On Hand (Arrived, Not Yet Sold)</div>
-      <div class="cf-cards-grid" id="cf-stock-onhand"></div>
-
-      <div class="cf-section-title">⏳ Awaiting Payment Confirmation</div>
-      <div class="cf-cards-grid" id="cf-awaiting-payment"></div>
+      <div class="section-header" style="margin:24px 0 12px;">
+        <div class="cf-section-title" style="margin:0;">📋 Orders</div>
+        <button class="btn btn-secondary btn-sm" id="cf-toggle-completed-btn" onclick="toggleCfCompleted()"></button>
+      </div>
+      <div class="cf-cards-grid" id="cf-orders"></div>
 
       <div class="cf-section-title">📜 Full Ledger</div>
       <div class="card"><div id="cf-list"></div></div>
@@ -469,6 +467,8 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
   <div class="modal">
     <h3 id="sale-modal-title">Log Sale</h3>
     <input type="hidden" id="sale-edit-id">
+    <input type="hidden" id="sale-order-id">
+    <div id="sale-order-banner" style="display:none;font-size:12px;color:var(--primary);background:var(--primary-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;"></div>
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="sale-date"></div>
       <div class="form-group"><label>Platform</label>
@@ -578,6 +578,7 @@ let DB = defaultDB();
 let currentPage = 'dashboard';
 let calMonth = new Date();
 let invCatFilter = 'All';
+let cfShowCompleted = false;
 
 function defaultDB(){
   return { sales: [], inventory: [], orders: [] };
@@ -755,11 +756,14 @@ function renderSales(){
     </tbody></table>` : `<div class="empty-state"><p>No sales logged yet. Click "+ Log Sale" to add one.</p></div>`;
 }
 
-function openSaleModal(id, prefillItem){
+function openSaleModal(id, prefillItem, orderId){
   document.getElementById('sale-edit-id').value = id || '';
   document.getElementById('sale-modal-title').textContent = id ? 'Edit Sale' : 'Log Sale';
+  const banner = document.getElementById('sale-order-banner');
+  banner.style.display = 'none';
   if (id) {
     const s = DB.sales.find(x => x.id === id);
+    document.getElementById('sale-order-id').value = s.orderId || '';
     document.getElementById('sale-date').value = s.date;
     document.getElementById('sale-platform').value = s.platform;
     document.getElementById('sale-item').value = s.item;
@@ -770,7 +774,12 @@ function openSaleModal(id, prefillItem){
     document.getElementById('sale-fee').value = s.fee;
     document.getElementById('sale-shipping').value = s.shipping;
     document.getElementById('sale-notes').value = s.notes || '';
+    if (s.orderId) {
+      const o = DB.orders.find(x => x.id === s.orderId);
+      if (o) { banner.textContent = `Linked to order: ${o.item} (${o.supplier})`; banner.style.display = ''; }
+    }
   } else {
+    document.getElementById('sale-order-id').value = orderId || '';
     document.getElementById('sale-date').value = todayISO();
     document.getElementById('sale-platform').value = 'eBay';
     document.getElementById('sale-item').value = prefillItem || '';
@@ -782,6 +791,15 @@ function openSaleModal(id, prefillItem){
     document.getElementById('sale-shipping').value = 0;
     document.getElementById('sale-notes').value = '';
     if (prefillItem) syncSaleItemFromInventory();
+    if (orderId) {
+      const o = DB.orders.find(x => x.id === orderId);
+      if (o) {
+        const remaining = o.qty - orderSoldQty(o);
+        document.getElementById('sale-qty').value = Math.max(1, remaining);
+        banner.textContent = `Selling from order: ${o.item} (${o.supplier}) — ${remaining} of ${o.qty} left`;
+        banner.style.display = '';
+      }
+    }
   }
   computeSalePreview();
   openModalEl('sale-modal');
@@ -811,10 +829,19 @@ function computeSalePreview(){
 
 function saveSale(){
   const id = document.getElementById('sale-edit-id').value;
+  const orderId = document.getElementById('sale-order-id').value;
   const item = document.getElementById('sale-item').value.trim();
   if (!item) { alert('Please enter an item name.'); return; }
   const qty = num(document.getElementById('sale-qty').value);
   if (qty <= 0) { alert('Quantity must be at least 1.'); return; }
+
+  if (orderId && !id) {
+    const o = DB.orders.find(x => x.id === orderId);
+    if (o) {
+      const remaining = o.qty - orderSoldQty(o);
+      if (qty > remaining) { alert(`Only ${remaining} unit${remaining===1?'':'s'} left unsold on this order.`); return; }
+    }
+  }
 
   const data = {
     date: document.getElementById('sale-date').value || todayISO(),
@@ -826,6 +853,7 @@ function saveSale(){
     fee: num(document.getElementById('sale-fee').value),
     shipping: num(document.getElementById('sale-shipping').value),
     notes: document.getElementById('sale-notes').value.trim(),
+    orderId: orderId || '',
   };
 
   const invItem = DB.inventory.find(i => i.name.toLowerCase() === item.toLowerCase());
@@ -950,16 +978,34 @@ function deleteInventoryItem(id){
 // ---------------------------------------------------------------
 // CASH FLOW  (derived from orders = cash out, sales = cash in)
 // ---------------------------------------------------------------
+function toggleCfCompleted(){ cfShowCompleted = !cfShowCompleted; renderCashFlow(); }
+
+function orderMiniPipeline(o, stage){
+  const soldQty = orderSoldQty(o);
+  const steps = [
+    {icon:'💸', label:'Ordered',  done: true,                         date: fmtDate(o.date)},
+    {icon:'📦', label:'Arrived',  done: stage!=='ordered',             date: stage==='ordered' ? `est. ${fmtDate(o.arrival)}` : fmtDate(o.arrival)},
+    {icon:'🛍', label:'Sold',     done: stage==='sold'||stage==='complete', date: `${soldQty}/${o.qty}`},
+    {icon:'✅', label:'Complete', done: stage==='complete',            date: stage==='complete' ? 'Paid' : '—'},
+  ];
+  return `<div class="cf-mini-pipeline">${steps.map((s,i) => `
+      <span class="cf-mini-step ${s.done?'done':''}">${s.icon} ${s.label}<small>${s.date}</small></span>
+      ${i<steps.length-1 ? `<span class="cf-mini-line ${steps[i+1].done?'done':''}"></span>` : ''}
+    `).join('')}</div>`;
+}
+
 function renderCashFlow(){
   const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled');
-  const inTransit = nonCancelled.filter(o => o.status !== 'Arrived');
-  const cashOut = nonCancelled.reduce((a,o) => a + o.qty*o.cost, 0);
-  const transitValue = inTransit.reduce((a,o) => a + o.qty*o.cost, 0);
+  const staged = nonCancelled.map(o => ({ o, stage: orderStage(o) }));
 
-  // "On hand" = current inventory value — stock that has arrived but hasn't been sold yet.
-  // (Unlike order costs, this naturally decreases as items sell, since sales decrement inventory qty.)
-  const stockOnHand = DB.inventory.filter(i => i.qty > 0);
-  const onHandValue = stockOnHand.reduce((a,i) => a + i.qty*i.cost, 0);
+  const ordered  = staged.filter(x => x.stage === 'ordered');
+  const arrived  = staged.filter(x => x.stage === 'arrived');
+  const sold     = staged.filter(x => x.stage === 'sold');
+  const complete = staged.filter(x => x.stage === 'complete');
+
+  const cashOut = nonCancelled.reduce((a,o) => a + o.qty*o.cost, 0);
+  const transitValue = ordered.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
+  const onHandValue = arrived.reduce((a,x) => a + (x.o.qty - orderSoldQty(x.o))*x.o.cost, 0);
 
   const receivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
@@ -977,69 +1023,66 @@ function renderCashFlow(){
   document.getElementById('cf-pipeline').innerHTML = `
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--red-light);color:var(--red);">💸</div>
-      <div class="cf-stage-label">Paid Supplier</div>
-      <div class="cf-stage-value">${fmtMoney(cashOut)}</div>
-      <div class="cf-stage-sub">${nonCancelled.length} order${nonCancelled.length===1?'':'s'}</div>
+      <div class="cf-stage-label">Ordered</div>
+      <div class="cf-stage-value">${fmtMoney(transitValue)}</div>
+      <div class="cf-stage-sub">${ordered.length} order${ordered.length===1?'':'s'}</div>
     </div>
     <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--blue-light);color:var(--blue);">📦</div>
-      <div class="cf-stage-label">In Stock, Unsold</div>
+      <div class="cf-stage-label">Arrived, Unsold</div>
       <div class="cf-stage-value">${fmtMoney(onHandValue)}</div>
-      <div class="cf-stage-sub">${stockOnHand.length} item${stockOnHand.length===1?'':'s'}</div>
+      <div class="cf-stage-sub">${arrived.length} order${arrived.length===1?'':'s'}</div>
     </div>
     <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--yellow-light);color:var(--yellow);">🛍</div>
-      <div class="cf-stage-label">Sold</div>
-      <div class="cf-stage-value">${fmtMoney(awaiting)}</div>
-      <div class="cf-stage-sub">${pendingSales.length} awaiting payment</div>
+      <div class="cf-stage-label">Sold, Unpaid</div>
+      <div class="cf-stage-value">${fmtMoney(sold.reduce((a,x)=>a+x.o.qty*x.o.cost,0))}</div>
+      <div class="cf-stage-sub">${sold.length} order${sold.length===1?'':'s'}</div>
     </div>
     <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
-      <div class="cf-stage-icon" style="background:var(--green-light);color:var(--green);">💰</div>
-      <div class="cf-stage-label">Cash Received</div>
-      <div class="cf-stage-value">${fmtMoney(cashIn)}</div>
-      <div class="cf-stage-sub">${receivedSales.length} confirmed</div>
+      <div class="cf-stage-icon" style="background:var(--green-light);color:var(--green);">✅</div>
+      <div class="cf-stage-label">Complete</div>
+      <div class="cf-stage-value">${fmtMoney(complete.reduce((a,x)=>a+x.o.qty*x.o.cost,0))}</div>
+      <div class="cf-stage-sub">${complete.length} order${complete.length===1?'':'s'}</div>
     </div>`;
 
-  // ---- Orders in progress ----
-  const inProgress = [...inTransit].sort((a,b) => a.arrival.localeCompare(b.arrival));
-  document.getElementById('cf-orders-inprogress').innerHTML = inProgress.length ? inProgress.map(o => `
-    <div class="cf-card">
+  // ---- Orders (unified pipeline cards) ----
+  const toggleBtn = document.getElementById('cf-toggle-completed-btn');
+  toggleBtn.textContent = cfShowCompleted ? 'Hide completed' : `Show ${complete.length} completed`;
+  toggleBtn.style.display = complete.length ? '' : 'none';
+
+  const stageOrder = {ordered:0, arrived:1, sold:2, complete:3};
+  let visible = cfShowCompleted ? staged : staged.filter(x => x.stage !== 'complete');
+  visible = visible.slice().sort((a,b) => stageOrder[a.stage] - stageOrder[b.stage] || a.o.arrival.localeCompare(b.o.arrival));
+
+  document.getElementById('cf-orders').innerHTML = visible.length ? visible.map(({o, stage}) => {
+    const meta = ORDER_STAGE_META[stage];
+    const soldQty = orderSoldQty(o);
+    const remaining = o.qty - soldQty;
+    let action = '';
+    if (stage === 'ordered') {
+      action = `<button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>`;
+    } else if (stage === 'arrived') {
+      action = `<button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="openSaleModal(null,'${escapeHtml(o.item)}','${o.id}')">+ Log Sale (${remaining} left)</button>`;
+    } else if (stage === 'sold') {
+      action = `<button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderAllCashReceived('${o.id}')">✓ Mark Cash Received</button>`;
+    }
+    const progress = stage === 'arrived' ? `
+      <div class="progress-bar" style="margin-top:10px;"><div class="progress-bar-fill" style="width:${Math.round(soldQty/o.qty*100)}%;"></div></div>
+      <div class="cf-card-sub" style="margin-top:4px;">${soldQty} of ${o.qty} sold</div>` : '';
+    return `<div class="cf-card">
       <div class="cf-card-top">
         <div><strong>${escapeHtml(o.item)}</strong><div class="cf-card-sub">${escapeHtml(o.supplier)} · ${fmtMoney(o.qty*o.cost)}</div></div>
-        ${statusPill(o.status)}
+        <span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span>
       </div>
-      <div class="cf-mini-pipeline">
-        <span class="cf-mini-step done">💸 Paid<small>${fmtDate(o.date)}</small></span>
-        <span class="cf-mini-line"></span>
-        <span class="cf-mini-step">📦 Arriving<small>${fmtDate(o.arrival)}</small></span>
-      </div>
-      <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>
-    </div>`).join('') : `<div class="empty-state"><p>No orders in transit — everything's arrived.</p></div>`;
-
-  // ---- Stock on hand (arrived, not yet sold) ----
-  const onHandSorted = [...stockOnHand].sort((a,b) => (b.qty*b.cost) - (a.qty*a.cost));
-  document.getElementById('cf-stock-onhand').innerHTML = onHandSorted.length ? onHandSorted.map(i => `
-    <div class="cf-card">
-      <div class="cf-card-top">
-        <div><strong>${escapeHtml(i.name)}</strong><div class="cf-card-sub">${i.qty} in stock · ${fmtMoney(i.cost)} each</div></div>
-        <div style="font-weight:700;font-family:var(--font-mono);">${fmtMoney(i.qty*i.cost)}</div>
-      </div>
-      <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="openSaleModal(null,'${escapeHtml(i.name)}')">+ Log Sale</button>
-    </div>`).join('') : `<div class="empty-state"><p>No unsold stock right now — everything's either in transit or sold.</p></div>`;
-
-  // ---- Awaiting payment confirmation ----
-  const pendingSorted = [...pendingSales].sort((a,b) => a.date.localeCompare(b.date));
-  document.getElementById('cf-awaiting-payment').innerHTML = pendingSorted.length ? pendingSorted.map(s => `
-    <div class="cf-card">
-      <div class="cf-card-top">
-        <div><strong>${escapeHtml(s.item)}</strong><div class="cf-card-sub">${escapeHtml(s.platform)} · sold ${fmtDate(s.date)}</div></div>
-        <div style="font-weight:700;font-family:var(--font-mono);">${fmtMoney(saleNet(s))}</div>
-      </div>
-      <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="markSaleCashReceived('${s.id}')">✓ Mark Cash Received</button>
-    </div>`).join('') : `<div class="empty-state"><p>No sales awaiting payment — all caught up.</p></div>`;
+      ${orderMiniPipeline(o, stage)}
+      ${progress}
+      ${action}
+    </div>`;
+  }).join('') : `<div class="empty-state"><p>No orders yet. Click "+ Add Order" on the Supplier Calendar to add one.</p></div>`;
 
   // ---- Full ledger ----
   const events = [];
@@ -1197,6 +1240,39 @@ function markOrderArrived(id){
   } else {
     DB.inventory.push({ id: uid(), name: o.item, category: 'Other', qty: o.qty, cost: o.cost, threshold: 0, supplier: o.supplier, notes: '' });
   }
+  save();
+}
+
+// ---------------------------------------------------------------
+// ORDER LIFECYCLE  (Ordered -> Arrived -> Sold -> Complete)
+// ---------------------------------------------------------------
+function orderSoldQty(o){
+  return DB.sales.filter(s => s.orderId === o.id).reduce((a,s) => a + s.qty, 0);
+}
+
+function orderStage(o){
+  if (o.status === 'Cancelled') return 'cancelled';
+  if (o.status !== 'Arrived') return 'ordered';
+  const sold = orderSoldQty(o);
+  if (sold < o.qty) return 'arrived';
+  const linked = DB.sales.filter(s => s.orderId === o.id);
+  const allPaid = linked.length > 0 && linked.every(s => saleCashReceived(s));
+  return allPaid ? 'complete' : 'sold';
+}
+
+const ORDER_STAGE_META = {
+  ordered:  {label:'Ordered',  icon:'💸', bg:'var(--red-light)',    color:'var(--red)',    step:0},
+  arrived:  {label:'Arrived',  icon:'📦', bg:'var(--blue-light)',   color:'var(--blue)',   step:1},
+  sold:     {label:'Sold',     icon:'🛍', bg:'var(--yellow-light)', color:'var(--yellow)', step:2},
+  complete: {label:'Complete', icon:'✅', bg:'var(--green-light)',  color:'var(--green)',  step:3},
+};
+
+function markOrderAllCashReceived(orderId){
+  const today = todayISO();
+  DB.sales.filter(s => s.orderId === orderId && !saleCashReceived(s)).forEach(s => {
+    s.cashStatus = 'received';
+    s.cashInDate = today;
+  });
   save();
 }
 
