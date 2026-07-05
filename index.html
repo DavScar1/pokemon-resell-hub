@@ -374,6 +374,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
       <div class="cf-kpis" style="margin-bottom:20px;">
         <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-transit">$0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Stock On Hand</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Sold, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">Confirmed &amp; received</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Net Position</div><div class="stat-sub">In − Out</div></div>
@@ -383,6 +384,9 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
 
       <div class="cf-section-title">🚚 Orders In Progress</div>
       <div class="cf-cards-grid" id="cf-orders-inprogress"></div>
+
+      <div class="cf-section-title">📦 Stock On Hand (Arrived, Not Yet Sold)</div>
+      <div class="cf-cards-grid" id="cf-stock-onhand"></div>
 
       <div class="cf-section-title">⏳ Awaiting Payment Confirmation</div>
       <div class="cf-cards-grid" id="cf-awaiting-payment"></div>
@@ -751,7 +755,7 @@ function renderSales(){
     </tbody></table>` : `<div class="empty-state"><p>No sales logged yet. Click "+ Log Sale" to add one.</p></div>`;
 }
 
-function openSaleModal(id){
+function openSaleModal(id, prefillItem){
   document.getElementById('sale-edit-id').value = id || '';
   document.getElementById('sale-modal-title').textContent = id ? 'Edit Sale' : 'Log Sale';
   if (id) {
@@ -769,7 +773,7 @@ function openSaleModal(id){
   } else {
     document.getElementById('sale-date').value = todayISO();
     document.getElementById('sale-platform').value = 'eBay';
-    document.getElementById('sale-item').value = '';
+    document.getElementById('sale-item').value = prefillItem || '';
     document.getElementById('sale-category').value = 'Booster Box';
     document.getElementById('sale-qty').value = 1;
     document.getElementById('sale-price').value = '';
@@ -777,6 +781,7 @@ function openSaleModal(id){
     document.getElementById('sale-fee').value = 0;
     document.getElementById('sale-shipping').value = 0;
     document.getElementById('sale-notes').value = '';
+    if (prefillItem) syncSaleItemFromInventory();
   }
   computeSalePreview();
   openModalEl('sale-modal');
@@ -947,11 +952,14 @@ function deleteInventoryItem(id){
 // ---------------------------------------------------------------
 function renderCashFlow(){
   const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled');
-  const arrived = nonCancelled.filter(o => o.status === 'Arrived');
   const inTransit = nonCancelled.filter(o => o.status !== 'Arrived');
   const cashOut = nonCancelled.reduce((a,o) => a + o.qty*o.cost, 0);
-  const arrivedValue = arrived.reduce((a,o) => a + o.qty*o.cost, 0);
   const transitValue = inTransit.reduce((a,o) => a + o.qty*o.cost, 0);
+
+  // "On hand" = current inventory value — stock that has arrived but hasn't been sold yet.
+  // (Unlike order costs, this naturally decreases as items sell, since sales decrement inventory qty.)
+  const stockOnHand = DB.inventory.filter(i => i.qty > 0);
+  const onHandValue = stockOnHand.reduce((a,i) => a + i.qty*i.cost, 0);
 
   const receivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
@@ -960,6 +968,7 @@ function renderCashFlow(){
 
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
   document.getElementById('cf-transit').textContent = fmtMoney(transitValue);
+  document.getElementById('cf-onhand').textContent = fmtMoney(onHandValue);
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-in').textContent = fmtMoney(cashIn);
   document.getElementById('cf-net').textContent = fmtMoney(cashIn - cashOut);
@@ -975,9 +984,9 @@ function renderCashFlow(){
     <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--blue-light);color:var(--blue);">📦</div>
-      <div class="cf-stage-label">Stock Arrived</div>
-      <div class="cf-stage-value">${fmtMoney(arrivedValue)}</div>
-      <div class="cf-stage-sub">${arrived.length} of ${nonCancelled.length}</div>
+      <div class="cf-stage-label">In Stock, Unsold</div>
+      <div class="cf-stage-value">${fmtMoney(onHandValue)}</div>
+      <div class="cf-stage-sub">${stockOnHand.length} item${stockOnHand.length===1?'':'s'}</div>
     </div>
     <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
@@ -1009,6 +1018,17 @@ function renderCashFlow(){
       </div>
       <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>
     </div>`).join('') : `<div class="empty-state"><p>No orders in transit — everything's arrived.</p></div>`;
+
+  // ---- Stock on hand (arrived, not yet sold) ----
+  const onHandSorted = [...stockOnHand].sort((a,b) => (b.qty*b.cost) - (a.qty*a.cost));
+  document.getElementById('cf-stock-onhand').innerHTML = onHandSorted.length ? onHandSorted.map(i => `
+    <div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(i.name)}</strong><div class="cf-card-sub">${i.qty} in stock · ${fmtMoney(i.cost)} each</div></div>
+        <div style="font-weight:700;font-family:var(--font-mono);">${fmtMoney(i.qty*i.cost)}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="openSaleModal(null,'${escapeHtml(i.name)}')">+ Log Sale</button>
+    </div>`).join('') : `<div class="empty-state"><p>No unsold stock right now — everything's either in transit or sold.</p></div>`;
 
   // ---- Awaiting payment confirmation ----
   const pendingSorted = [...pendingSales].sort((a,b) => a.date.localeCompare(b.date));
