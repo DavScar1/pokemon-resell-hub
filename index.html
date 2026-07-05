@@ -201,6 +201,31 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
 .cat-pill:hover{border-color:var(--border-strong);color:var(--text);}
 .cat-pill.active{background:var(--gradient);color:#04121a;border-color:transparent;}
 
+/* ---------- Cash Flow pipeline ---------- */
+.cf-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.cf-kpis .stat-value{font-size:19px;}
+.cf-pipeline{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.cf-stage{position:relative;flex:1;min-width:130px;background:var(--card-bg);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;overflow:hidden;}
+.cf-stage::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gradient);opacity:.55;}
+.cf-stage-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;margin:0 auto 8px;}
+.cf-stage-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);}
+.cf-stage-value{font-family:var(--font-mono);font-size:18px;font-weight:700;margin-top:4px;}
+.cf-stage-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.cf-stage-arrow{color:var(--text-muted);font-size:18px;flex-shrink:0;}
+.cf-section-title{font-size:14px;font-weight:700;margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
+.cf-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:8px;}
+.cf-card{position:relative;background:var(--card-bg);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;overflow:hidden;}
+.cf-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gradient);opacity:.4;}
+.cf-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.cf-card-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+.cf-mini-pipeline{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11px;color:var(--text-secondary);}
+.cf-mini-step{flex:1;text-align:center;}
+.cf-mini-step.done{color:var(--green);}
+.cf-mini-step small{display:block;color:var(--text-muted);font-size:10px;margin-top:2px;}
+.cf-mini-line{height:2px;width:20px;background:var(--border);flex-shrink:0;}
+.pay-pill{cursor:pointer;border:none;font-family:inherit;}
+.pay-pill.pending:hover{background:rgba(251,191,36,.22);}
+
 /* ---------- Responsive ---------- */
 @media(max-width:860px){
   .sidebar{transform:translateX(-100%);}
@@ -219,12 +244,16 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
   .cal-cell{min-height:52px;padding:4px;font-size:10px;}
   .cal-badge{font-size:0;padding:3px;text-align:center;}
   .cal-badge::before{content:'●';font-size:9px;}
+  .cf-kpis{grid-template-columns:repeat(2,1fr);}
+  .cf-stage-arrow{display:none;}
+  .cf-cards-grid{grid-template-columns:1fr;}
 }
 @media(max-width:480px){
   .grid-4{grid-template-columns:1fr 1fr;}
   .main{padding:16px 12px 50px;}
   table.tbl{font-size:12px;}
   table.tbl th,table.tbl td{padding:8px 6px;}
+  .cf-kpis{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -338,15 +367,27 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
       <div class="section-header" style="margin-bottom:18px;">
         <div>
           <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cash Flow</h2>
-          <p style="color:var(--text-secondary);font-size:13px;margin-top:3px;">Money out to suppliers → stock arriving → selling → cash in.</p>
+          <p style="color:var(--text-secondary);font-size:13px;margin-top:3px;">Pay supplier → stock arrives → you sell it → customer confirms → cash lands.</p>
         </div>
       </div>
-      <div class="grid-4" style="margin-bottom:18px;">
-        <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">From sales</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">To suppliers</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Net Cash Flow</div><div class="stat-sub">In − Out</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-pending">$0</div><div class="stat-label">Pending Orders</div><div class="stat-sub">Not yet arrived</div></div>
+
+      <div class="cf-kpis" style="margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-transit">$0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Sold, not confirmed</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">Confirmed &amp; received</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Net Position</div><div class="stat-sub">In − Out</div></div>
       </div>
+
+      <div class="cf-pipeline" id="cf-pipeline"></div>
+
+      <div class="cf-section-title">🚚 Orders In Progress</div>
+      <div class="cf-cards-grid" id="cf-orders-inprogress"></div>
+
+      <div class="cf-section-title">⏳ Awaiting Payment Confirmation</div>
+      <div class="cf-cards-grid" id="cf-awaiting-payment"></div>
+
+      <div class="cf-section-title">📜 Full Ledger</div>
       <div class="card"><div id="cf-list"></div></div>
     </div>
 
@@ -573,6 +614,24 @@ function currentUserEmail(){ return (window._authEmail) || ''; }
 function saleProfit(s){ return (s.qty*s.price) - (s.qty*s.cost) - num(s.fee) - num(s.shipping); }
 function saleRevenue(s){ return s.qty*s.price; }
 function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping); }
+function saleNet(s){ return saleRevenue(s) - num(s.fee) - num(s.shipping); }
+function saleCashReceived(s){ return s.cashStatus !== 'pending'; }
+
+function markSaleCashReceived(id){
+  const s = DB.sales.find(x => x.id === id);
+  if (!s) return;
+  s.cashStatus = 'received';
+  s.cashInDate = todayISO();
+  save();
+}
+
+function markSaleCashPending(id){
+  const s = DB.sales.find(x => x.id === id);
+  if (!s) return;
+  s.cashStatus = 'pending';
+  s.cashInDate = '';
+  save();
+}
 
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function openModalEl(id){ document.getElementById(id).classList.add('open'); }
@@ -671,7 +730,7 @@ function renderSales(){
   const rows = [...DB.sales].sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('sales-list').innerHTML = rows.length ? `
     <table class="tbl"><thead><tr>
-      <th>Date</th><th>Item</th><th>Qty</th><th>Platform</th><th>Revenue</th><th>Profit</th><th>By</th><th></th>
+      <th>Date</th><th>Item</th><th>Qty</th><th>Platform</th><th>Revenue</th><th>Profit</th><th>Payment</th><th>By</th><th></th>
     </tr></thead><tbody>
       ${rows.map(s => `<tr>
         <td>${fmtDate(s.date)}</td>
@@ -680,6 +739,9 @@ function renderSales(){
         <td>${escapeHtml(s.platform)}</td>
         <td>${fmtMoney(saleRevenue(s))}</td>
         <td style="color:${saleProfit(s)>=0?'#34d399':'#fb7185'};font-weight:700;">${fmtMoney(saleProfit(s))}</td>
+        <td>${saleCashReceived(s)
+          ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
+          : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}</td>
         <td style="color:var(--text-muted);font-size:11px;">${escapeHtml((s.loggedBy||'').split('@')[0])}</td>
         <td><div class="row-actions">
           <button class="icon-btn" onclick="openSaleModal('${s.id}')">✏️</button>
@@ -769,6 +831,8 @@ function saveSale(){
   } else {
     data.id = uid();
     data.loggedBy = currentUserEmail();
+    data.cashStatus = 'pending';
+    data.cashInDate = '';
     DB.sales.push(data);
     if (invItem) invItem.qty = Math.max(0, invItem.qty - qty);
   }
@@ -882,37 +946,105 @@ function deleteInventoryItem(id){
 // CASH FLOW  (derived from orders = cash out, sales = cash in)
 // ---------------------------------------------------------------
 function renderCashFlow(){
-  const cashIn = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
-  const cashOut = DB.orders.filter(o => o.status !== 'Cancelled').reduce((a,o) => a + o.qty*o.cost, 0);
-  const pending = DB.orders.filter(o => o.status !== 'Cancelled' && o.status !== 'Arrived').reduce((a,o) => a + o.qty*o.cost, 0);
+  const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled');
+  const arrived = nonCancelled.filter(o => o.status === 'Arrived');
+  const inTransit = nonCancelled.filter(o => o.status !== 'Arrived');
+  const cashOut = nonCancelled.reduce((a,o) => a + o.qty*o.cost, 0);
+  const arrivedValue = arrived.reduce((a,o) => a + o.qty*o.cost, 0);
+  const transitValue = inTransit.reduce((a,o) => a + o.qty*o.cost, 0);
 
-  document.getElementById('cf-in').textContent = fmtMoney(cashIn);
+  const receivedSales = DB.sales.filter(s => saleCashReceived(s));
+  const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
+  const cashIn = receivedSales.reduce((a,s) => a + saleNet(s), 0);
+  const awaiting = pendingSales.reduce((a,s) => a + saleNet(s), 0);
+
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
+  document.getElementById('cf-transit').textContent = fmtMoney(transitValue);
+  document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
+  document.getElementById('cf-in').textContent = fmtMoney(cashIn);
   document.getElementById('cf-net').textContent = fmtMoney(cashIn - cashOut);
-  document.getElementById('cf-pending').textContent = fmtMoney(pending);
 
+  // ---- Pipeline strip ----
+  document.getElementById('cf-pipeline').innerHTML = `
+    <div class="cf-stage">
+      <div class="cf-stage-icon" style="background:var(--red-light);color:var(--red);">💸</div>
+      <div class="cf-stage-label">Paid Supplier</div>
+      <div class="cf-stage-value">${fmtMoney(cashOut)}</div>
+      <div class="cf-stage-sub">${nonCancelled.length} order${nonCancelled.length===1?'':'s'}</div>
+    </div>
+    <div class="cf-stage-arrow">→</div>
+    <div class="cf-stage">
+      <div class="cf-stage-icon" style="background:var(--blue-light);color:var(--blue);">📦</div>
+      <div class="cf-stage-label">Stock Arrived</div>
+      <div class="cf-stage-value">${fmtMoney(arrivedValue)}</div>
+      <div class="cf-stage-sub">${arrived.length} of ${nonCancelled.length}</div>
+    </div>
+    <div class="cf-stage-arrow">→</div>
+    <div class="cf-stage">
+      <div class="cf-stage-icon" style="background:var(--yellow-light);color:var(--yellow);">🛍</div>
+      <div class="cf-stage-label">Sold</div>
+      <div class="cf-stage-value">${fmtMoney(awaiting)}</div>
+      <div class="cf-stage-sub">${pendingSales.length} awaiting payment</div>
+    </div>
+    <div class="cf-stage-arrow">→</div>
+    <div class="cf-stage">
+      <div class="cf-stage-icon" style="background:var(--green-light);color:var(--green);">💰</div>
+      <div class="cf-stage-label">Cash Received</div>
+      <div class="cf-stage-value">${fmtMoney(cashIn)}</div>
+      <div class="cf-stage-sub">${receivedSales.length} confirmed</div>
+    </div>`;
+
+  // ---- Orders in progress ----
+  const inProgress = [...inTransit].sort((a,b) => a.arrival.localeCompare(b.arrival));
+  document.getElementById('cf-orders-inprogress').innerHTML = inProgress.length ? inProgress.map(o => `
+    <div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(o.item)}</strong><div class="cf-card-sub">${escapeHtml(o.supplier)} · ${fmtMoney(o.qty*o.cost)}</div></div>
+        ${statusPill(o.status)}
+      </div>
+      <div class="cf-mini-pipeline">
+        <span class="cf-mini-step done">💸 Paid<small>${fmtDate(o.date)}</small></span>
+        <span class="cf-mini-line"></span>
+        <span class="cf-mini-step">📦 Arriving<small>${fmtDate(o.arrival)}</small></span>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>
+    </div>`).join('') : `<div class="empty-state"><p>No orders in transit — everything's arrived.</p></div>`;
+
+  // ---- Awaiting payment confirmation ----
+  const pendingSorted = [...pendingSales].sort((a,b) => a.date.localeCompare(b.date));
+  document.getElementById('cf-awaiting-payment').innerHTML = pendingSorted.length ? pendingSorted.map(s => `
+    <div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(s.item)}</strong><div class="cf-card-sub">${escapeHtml(s.platform)} · sold ${fmtDate(s.date)}</div></div>
+        <div style="font-weight:700;font-family:var(--font-mono);">${fmtMoney(saleNet(s))}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="markSaleCashReceived('${s.id}')">✓ Mark Cash Received</button>
+    </div>`).join('') : `<div class="empty-state"><p>No sales awaiting payment — all caught up.</p></div>`;
+
+  // ---- Full ledger ----
   const events = [];
-  DB.orders.filter(o => o.status !== 'Cancelled').forEach(o => events.push({
-    date: o.date, type: 'out', label: `${o.item} × ${o.qty}`, sub: `Paid to ${o.supplier}`, amount: -(o.qty*o.cost)
+  nonCancelled.forEach(o => events.push({
+    date: o.date, type: 'out', label: `${o.item} × ${o.qty}`, sub: `Paid to ${o.supplier}`, amount: -(o.qty*o.cost), realized: true
   }));
-  DB.sales.forEach(s => events.push({
-    date: s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping)
+  receivedSales.forEach(s => events.push({
+    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleNet(s), realized: true
+  }));
+  pendingSales.forEach(s => events.push({
+    date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleNet(s), realized: false
   }));
   events.sort((a,b) => b.date.localeCompare(a.date));
 
-  let running = events.slice().reverse().reduce((acc, e) => { acc += e.amount; e._running = acc; return acc; }, 0);
-  // recompute running balances in chronological order then map back
   let bal = 0;
   const chron = [...events].reverse();
-  chron.forEach(e => { bal += e.amount; e._running = bal; });
+  chron.forEach(e => { if (e.realized) bal += e.amount; e._running = bal; });
 
   document.getElementById('cf-list').innerHTML = events.length ? `
     <table class="tbl"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Balance</th></tr></thead><tbody>
       ${events.map(e => `<tr>
         <td>${fmtDate(e.date)}</td>
         <td><strong>${escapeHtml(e.label)}</strong><br><span style="color:var(--text-muted);font-size:11px;">${escapeHtml(e.sub)}</span></td>
-        <td>${e.type==='in' ? '<span class="pill pill-green">Cash In</span>' : '<span class="pill pill-red">Cash Out</span>'}</td>
-        <td style="color:${e.amount>=0?'#34d399':'#fb7185'};font-weight:700;">${e.amount>=0?'+':''}${fmtMoney(e.amount)}</td>
+        <td>${e.type==='in' ? '<span class="pill pill-green">Cash In</span>' : e.type==='out' ? '<span class="pill pill-red">Cash Out</span>' : '<span class="pill pill-yellow">Pending</span>'}</td>
+        <td style="color:${e.realized ? (e.amount>=0?'#34d399':'#fb7185') : 'var(--text-muted)'};font-weight:700;">${e.amount>=0?'+':''}${fmtMoney(e.amount)}</td>
         <td>${fmtMoney(e._running)}</td>
       </tr>`).join('')}
     </tbody></table>` : `<div class="empty-state"><p>No cash flow activity yet.</p></div>`;
