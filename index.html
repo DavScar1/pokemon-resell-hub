@@ -95,7 +95,8 @@ input,select,textarea{font-family:inherit;color-scheme:dark;}
 
 /* ---------- App shell ---------- */
 .app{display:none;min-height:100vh;}
-.sidebar{position:fixed;top:0;left:0;bottom:0;width:224px;background:var(--bg-elevated);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;}
+.sidebar-backdrop{display:none;}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:224px;background:var(--bg-elevated);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;z-index:600;transition:transform .25s ease;}
 .sidebar-logo{font-size:15.5px;font-weight:800;padding:6px 8px 20px;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;}
 .sidebar-logo-badge{width:28px;height:28px;border-radius:8px;background:var(--gradient);display:flex;align-items:center;justify-content:center;box-shadow:0 0 18px rgba(34,211,238,.3);flex-shrink:0;}
 .sidebar-logo-badge svg{width:15px;height:15px;stroke:#04121a;}
@@ -111,11 +112,13 @@ input,select,textarea{font-family:inherit;color-scheme:dark;}
 .sidebar-footer button{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;text-decoration:underline;padding:2px 0;}
 .sidebar-footer button:hover{color:var(--red);}
 
-.main{margin-left:224px;padding:24px 30px 60px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
-#sync-status{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);display:flex;align-items:center;gap:6px;}
-#sync-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);}
+.main{flex:1 1 auto;min-width:0;margin-left:224px;padding:24px 30px 60px;max-width:1680px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;}
+#sync-status{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+#sync-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0;}
 #sync-status.sync-error::before{background:var(--red);box-shadow:0 0 8px var(--red);}
+.menu-toggle{display:none;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:8px 10px;align-items:center;justify-content:center;}
+.menu-toggle svg{width:18px;height:18px;stroke:currentColor;}
 
 .page{display:none;}
 .page.active{display:block;animation:fadeInUp .35s ease;}
@@ -197,6 +200,32 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
 .cat-pill{padding:6px 13px;border-radius:99px;background:rgba(255,255,255,.03);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-secondary);transition:background .15s,border-color .15s,color .15s;}
 .cat-pill:hover{border-color:var(--border-strong);color:var(--text);}
 .cat-pill.active{background:var(--gradient);color:#04121a;border-color:transparent;}
+
+/* ---------- Responsive ---------- */
+@media(max-width:860px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);box-shadow:0 0 40px rgba(0,0,0,.6);}
+  .sidebar-backdrop.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);z-index:590;}
+  .main{margin-left:0;padding:18px 16px 60px;max-width:100%;}
+  .menu-toggle{display:flex;}
+  .grid-4{grid-template-columns:repeat(2,1fr);}
+  .grid-2{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .kpi-grid{grid-template-columns:1fr;}
+  .card{overflow-x:auto;}
+  table.tbl{min-width:640px;}
+  .section-header{flex-wrap:wrap;gap:10px;}
+  .cal-grid{grid-template-columns:repeat(7,minmax(38px,1fr));gap:3px;}
+  .cal-cell{min-height:52px;padding:4px;font-size:10px;}
+  .cal-badge{font-size:0;padding:3px;text-align:center;}
+  .cal-badge::before{content:'●';font-size:9px;}
+}
+@media(max-width:480px){
+  .grid-4{grid-template-columns:1fr 1fr;}
+  .main{padding:16px 12px 50px;}
+  table.tbl{font-size:12px;}
+  table.tbl th,table.tbl td{padding:8px 6px;}
+}
 </style>
 </head>
 <body>
@@ -223,7 +252,8 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
      APP SHELL
 ============================================================ -->
 <div class="app" id="app">
-  <div class="sidebar">
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
     <div class="sidebar-logo"><span class="sidebar-logo-badge"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><span>Resell Hub</span></div>
     <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</button>
     <button class="nav-item" data-page="sales" onclick="showPage('sales')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Sales Log</button>
@@ -239,7 +269,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
 
   <div class="main">
     <div class="topbar">
-      <div></div>
+      <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
       <div id="sync-status">Syncing…</div>
     </div>
 
@@ -555,7 +585,18 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === id));
+  closeSidebar();
   renderCurrentPage();
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
 }
 
 function renderCurrentPage(){
