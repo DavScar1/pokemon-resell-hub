@@ -379,8 +379,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
         <div class="stat-card"><div class="stat-value" id="cf-out">$0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-transit">$0</div><div class="stat-label">In Transit</div><div class="stat-sub">Stock not yet arrived</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Sold, not confirmed</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-in">$0</div><div class="stat-label">Cash In</div><div class="stat-sub">Confirmed &amp; received</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
       </div>
 
@@ -556,7 +555,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
     </div>
     <div class="form-group"><label>Status</label>
       <select id="order-status">
-        <option>Ordered</option><option>Shipped</option><option>Arrived</option><option>Cancelled</option>
+        <option>Ordered</option><option>Arrived</option><option>Cancelled</option>
       </select>
     </div>
     <div class="form-group"><label>Notes</label><textarea id="order-notes" rows="2"></textarea></div>
@@ -622,7 +621,6 @@ function currentUserEmail(){ return (window._authEmail) || ''; }
 function saleProfit(s){ return (s.qty*s.price) - (s.qty*s.cost) - num(s.fee) - num(s.shipping); }
 function saleRevenue(s){ return s.qty*s.price; }
 function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping); }
-function saleNet(s){ return saleRevenue(s) - num(s.fee) - num(s.shipping); }
 function saleCashReceived(s){ return s.cashStatus !== 'pending'; }
 
 function markSaleCashReceived(id){
@@ -711,16 +709,11 @@ function renderDashboard(){
 
   const upcoming = [...DB.orders].filter(o => o.status !== 'Cancelled' && o.status !== 'Arrived')
     .sort((a,b) => a.arrival.localeCompare(b.arrival)).slice(0,6);
-  document.getElementById('dash-upcoming-orders').innerHTML = upcoming.length ? upcoming.map(o => `
+  document.getElementById('dash-upcoming-orders').innerHTML = upcoming.length ? upcoming.map(o => { const meta = ORDER_STAGE_META[orderStage(o)]; return `
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
       <div><strong>${escapeHtml(o.item)}</strong><br><span style="color:var(--text-muted);font-size:11.5px;">${escapeHtml(o.supplier)} · arriving ${fmtDate(o.arrival)}</span></div>
-      <div style="text-align:right;">${statusPill(o.status)}<br><span style="font-size:11.5px;">${fmtMoney(o.qty*o.cost)}</span></div>
-    </div>`).join('') : `<div class="empty-state"><p>No upcoming orders.</p></div>`;
-}
-
-function statusPill(status){
-  const map = { Ordered:'pill-blue', Shipped:'pill-yellow', Arrived:'pill-green', Cancelled:'pill-red' };
-  return `<span class="pill ${map[status]||'pill-gray'}">${status}</span>`;
+      <div style="text-align:right;"><span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span><br><span style="font-size:11.5px;">${fmtMoney(o.qty*o.cost)}</span></div>
+    </div>`; }).join('') : `<div class="empty-state"><p>No upcoming orders.</p></div>`;
 }
 
 // ---------------------------------------------------------------
@@ -886,21 +879,24 @@ function deleteSale(id){
 // INVENTORY
 // ---------------------------------------------------------------
 function renderInventory(){
-  const value = DB.inventory.reduce((a,i) => a + i.qty*i.cost, 0);
-  const units = DB.inventory.reduce((a,i) => a + i.qty, 0);
-  const low = DB.inventory.filter(i => i.qty > 0 && i.qty <= i.threshold).length;
+  const inStock = DB.inventory.filter(i => i.qty > 0);
+  const value = inStock.reduce((a,i) => a + i.qty*i.cost, 0);
+  const units = inStock.reduce((a,i) => a + i.qty, 0);
+  const low = inStock.filter(i => i.qty <= i.threshold).length;
   const out = DB.inventory.filter(i => i.qty === 0).length;
   document.getElementById('inv-value').textContent = fmtMoney(value);
   document.getElementById('inv-units').textContent = units;
-  document.getElementById('inv-items-sub').textContent = DB.inventory.length + ' items';
+  document.getElementById('inv-items-sub').textContent = inStock.length + ' items';
   document.getElementById('inv-low').textContent = low;
   document.getElementById('inv-out').textContent = out;
 
-  const cats = ['All', ...new Set(DB.inventory.map(i => i.category))];
+  const cats = ['All', ...new Set(inStock.map(i => i.category))];
   document.getElementById('inv-cat-pills').innerHTML = cats.map(c =>
     `<button class="cat-pill ${c===invCatFilter?'active':''}" onclick="setInvCatFilter('${c}')">${c}</button>`).join('');
 
-  const rows = DB.inventory.filter(i => invCatFilter==='All' || i.category===invCatFilter)
+  // Sold-out items (qty 0) are hidden here once fully sold — they're gone from Inventory,
+  // not lingering as "Out of Stock" rows. The count above still tracks how many sold out.
+  const rows = inStock.filter(i => invCatFilter==='All' || i.category===invCatFilter)
     .sort((a,b) => a.name.localeCompare(b.name));
 
   document.getElementById('inventory-list').innerHTML = rows.length ? `
@@ -913,14 +909,14 @@ function renderInventory(){
         <td>${i.qty}</td>
         <td>${fmtMoney(i.cost)}</td>
         <td>${fmtMoney(i.qty*i.cost)}</td>
-        <td>${i.qty===0 ? '<span class="pill pill-red">Out of Stock</span>' : (i.qty<=i.threshold ? '<span class="pill pill-yellow">Low Stock</span>' : '<span class="pill pill-green">In Stock</span>')}</td>
+        <td>${i.qty<=i.threshold ? '<span class="pill pill-yellow">Low Stock</span>' : '<span class="pill pill-green">In Stock</span>'}</td>
         <td style="color:var(--text-muted);">${escapeHtml(i.supplier||'—')}</td>
         <td><div class="row-actions">
           <button class="icon-btn" onclick="openInventoryModal('${i.id}')">✏️</button>
           <button class="icon-btn" onclick="deleteInventoryItem('${i.id}')">🗑️</button>
         </div></td>
       </tr>`).join('')}
-    </tbody></table>` : `<div class="empty-state"><p>No inventory items yet. Click "+ Add Item" to add stock.</p></div>`;
+    </tbody></table>` : `<div class="empty-state"><p>No stock on hand right now. Mark an order "Arrived" to add stock, or click "+ Add Item".</p></div>`;
 }
 
 function setInvCatFilter(c){ invCatFilter = c; renderInventory(); }
@@ -1016,12 +1012,9 @@ function renderCashFlow(){
 
   const receivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
-  // "Cash In" = net proceeds actually deposited (revenue minus platform fees/shipping) — a cash-timing figure.
-  // It intentionally does NOT subtract cost of goods, since that cost was already paid out separately
-  // via the linked order's Cash Out. Real profit is tracked independently below (totalProfit), using
-  // each sale's own recorded cost — this stays correct even for sales with no linked order.
-  const cashIn = receivedSales.reduce((a,s) => a + saleNet(s), 0);
-  const awaiting = pendingSales.reduce((a,s) => a + saleNet(s), 0);
+  // Every sale figure here is real profit (revenue minus cost, fees and shipping) — using each
+  // sale's own recorded cost, so it stays correct regardless of whether it's linked to a tracked order.
+  const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
   const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
@@ -1029,7 +1022,6 @@ function renderCashFlow(){
   document.getElementById('cf-transit').textContent = fmtMoney(transitValue);
   document.getElementById('cf-onhand').textContent = fmtMoney(onHandValue);
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
-  document.getElementById('cf-in').textContent = fmtMoney(cashIn);
   document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
 
   // ---- Pipeline strip ----
@@ -1112,10 +1104,10 @@ function renderCashFlow(){
     date: o.date, type: 'out', label: `${o.item} × ${o.qty}`, sub: `Paid to ${o.supplier}`, amount: -(o.qty*o.cost), realized: true
   }); });
   receivedSales.forEach(s => events.push({
-    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleNet(s), realized: true
+    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · profit`, amount: saleProfit(s), realized: true
   }));
   pendingSales.forEach(s => events.push({
-    date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleNet(s), realized: false
+    date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleProfit(s), realized: false
   }));
   events.sort((a,b) => b.date.localeCompare(a.date));
 
