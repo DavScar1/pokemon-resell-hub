@@ -381,6 +381,7 @@ table.tbl tr:hover{background:rgba(255,255,255,.03);}
         <div class="stat-card"><div class="stat-value" id="cf-onhand">$0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">$0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">$0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-netcash">$0</div><div class="stat-label">Net Cash</div><div class="stat-sub">Received − paid to suppliers</div></div>
       </div>
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
@@ -1016,6 +1017,11 @@ function renderCashFlow(){
   // sale's own recorded cost, so it stays correct regardless of whether it's linked to a tracked order.
   const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
   const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
+  // Net Cash = literal money movement — gross proceeds actually deposited (not re-subtracting cost,
+  // since that already left the bank via Cash Out) minus everything paid to suppliers. This can run
+  // lower than Profit whenever cash is tied up in stock that hasn't sold yet.
+  const grossReceived = receivedSales.reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
+  const netCash = grossReceived - cashOut;
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1023,6 +1029,7 @@ function renderCashFlow(){
   document.getElementById('cf-onhand').textContent = fmtMoney(onHandValue);
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
+  document.getElementById('cf-netcash').textContent = fmtMoney(netCash);
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
