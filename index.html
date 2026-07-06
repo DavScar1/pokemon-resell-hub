@@ -290,6 +290,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</button>
     <button class="nav-item" data-page="sales" onclick="showPage('sales')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Sales Log</button>
     <button class="nav-item" data-page="inventory" onclick="showPage('inventory')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Inventory</button>
+    <button class="nav-item" data-page="deals" onclick="showPage('deals')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Deals</button>
     <button class="nav-item" data-page="cashflow" onclick="showPage('cashflow')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cash Flow</button>
     <button class="nav-item" data-page="calendar" onclick="showPage('calendar')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Supplier Calendar</button>
     <button class="nav-item" data-page="analytics" onclick="showPage('analytics')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Analytics</button>
@@ -363,6 +364,24 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div class="cat-pills" id="inv-cat-pills"></div>
         <div id="inventory-list"></div>
       </div>
+    </div>
+
+    <!-- ---------------- Deals ---------------- -->
+    <div class="page" id="page-deals">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Deals</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Buyers you're negotiating with, or who've agreed a price but haven't paid yet.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openDealModal()">+ Add Deal</button>
+      </div>
+      <div class="grid-4" style="margin-bottom:18px;">
+        <div class="stat-card"><div class="stat-value" id="deals-negotiating">0</div><div class="stat-label">Negotiating</div><div class="stat-sub">Still discussing price</div></div>
+        <div class="stat-card"><div class="stat-value" id="deals-agreed">0</div><div class="stat-label">Agreed</div><div class="stat-sub">Awaiting payment</div></div>
+        <div class="stat-card"><div class="stat-value" id="deals-agreed-value">€0</div><div class="stat-label">Agreed Value</div><div class="stat-sub">Likely coming in soon</div></div>
+        <div class="stat-card"><div class="stat-value" id="deals-potential">€0</div><div class="stat-label">Potential Value</div><div class="stat-sub">All open deals</div></div>
+      </div>
+      <div class="cf-cards-grid" id="deals-list"></div>
     </div>
 
     <!-- ---------------- Cash Flow ---------------- -->
@@ -471,6 +490,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <h3 id="sale-modal-title">Log Sale</h3>
     <input type="hidden" id="sale-edit-id">
     <input type="hidden" id="sale-order-id">
+    <input type="hidden" id="sale-deal-id">
     <div id="sale-order-banner" style="display:none;font-size:12px;color:var(--primary);background:var(--primary-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;"></div>
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="sale-date"></div>
@@ -567,6 +587,37 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Deal modal -->
+<div class="modal-overlay" id="deal-modal">
+  <div class="modal">
+    <h3 id="deal-modal-title">Add Deal</h3>
+    <input type="hidden" id="deal-edit-id">
+    <div class="form-group"><label>Buyer</label><input type="text" id="deal-buyer" placeholder="e.g. John, @username"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Platform</label>
+        <select id="deal-platform">
+          <option>eBay</option><option>TCGPlayer</option><option>Facebook Marketplace</option>
+          <option>Whatnot</option><option>Local / In-Person</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="deal-status">
+          <option>Negotiating</option><option>Agreed</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Item</label>
+      <input type="text" id="deal-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box">
+    </div>
+    <div class="form-group"><label>Price (€)</label><input type="number" id="deal-price" min="0" step="0.01" placeholder="Asking / agreed price"></div>
+    <div class="form-group"><label>Notes</label><textarea id="deal-notes" rows="2" placeholder="Negotiation details, contact info, etc."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('deal-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDeal()">Save Deal</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -584,7 +635,7 @@ let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
-  return { sales: [], inventory: [], orders: [] };
+  return { sales: [], inventory: [], orders: [], deals: [] };
 }
 
 function loadLocal(){
@@ -670,6 +721,7 @@ function renderCurrentPage(){
   if (currentPage === 'dashboard') renderDashboard();
   else if (currentPage === 'sales') renderSales();
   else if (currentPage === 'inventory') renderInventory();
+  else if (currentPage === 'deals') renderDeals();
   else if (currentPage === 'cashflow') renderCashFlow();
   else if (currentPage === 'calendar') renderCalendar();
   else if (currentPage === 'analytics') renderAnalytics();
@@ -758,6 +810,7 @@ function openSaleModal(id, prefillItem, orderId){
   document.getElementById('sale-modal-title').textContent = id ? 'Edit Sale' : 'Log Sale';
   const banner = document.getElementById('sale-order-banner');
   banner.style.display = 'none';
+  document.getElementById('sale-deal-id').value = '';
   if (id) {
     const s = DB.sales.find(x => x.id === id);
     document.getElementById('sale-order-id').value = s.orderId || '';
@@ -827,6 +880,7 @@ function computeSalePreview(){
 function saveSale(){
   const id = document.getElementById('sale-edit-id').value;
   const orderId = document.getElementById('sale-order-id').value;
+  const dealId = document.getElementById('sale-deal-id').value;
   const item = document.getElementById('sale-item').value.trim();
   if (!item) { alert('Please enter an item name.'); return; }
   const qty = num(document.getElementById('sale-qty').value);
@@ -861,10 +915,17 @@ function saveSale(){
   } else {
     data.id = uid();
     data.loggedBy = currentUserEmail();
-    data.cashStatus = 'pending';
-    data.cashInDate = '';
+    if (dealId) {
+      // Converted from an already-agreed, already-paid deal — no need to wait on confirmation.
+      data.cashStatus = 'received';
+      data.cashInDate = todayISO();
+    } else {
+      data.cashStatus = 'pending';
+      data.cashInDate = '';
+    }
     DB.sales.push(data);
     if (invItem) invItem.qty = Math.max(0, invItem.qty - qty);
+    if (dealId) DB.deals = DB.deals.filter(d => d.id !== dealId);
   }
   closeModal('sale-modal');
   save();
@@ -973,6 +1034,102 @@ function deleteInventoryItem(id){
   if (!confirm('Delete this inventory item?')) return;
   DB.inventory = DB.inventory.filter(i => i.id !== id);
   save();
+}
+
+// ---------------------------------------------------------------
+// DEALS  (buyers negotiating or agreed-but-unpaid, before they become a real Sale)
+// ---------------------------------------------------------------
+function renderDeals(){
+  const negotiating = DB.deals.filter(d => d.status === 'Negotiating');
+  const agreed = DB.deals.filter(d => d.status === 'Agreed');
+  const potentialValue = DB.deals.reduce((a,d) => a + num(d.price), 0);
+  const agreedValue = agreed.reduce((a,d) => a + num(d.price), 0);
+
+  document.getElementById('deals-negotiating').textContent = negotiating.length;
+  document.getElementById('deals-agreed').textContent = agreed.length;
+  document.getElementById('deals-agreed-value').textContent = fmtMoney(agreedValue);
+  document.getElementById('deals-potential').textContent = fmtMoney(potentialValue);
+
+  const sorted = [...DB.deals].sort((a,b) =>
+    (a.status === b.status ? 0 : a.status === 'Agreed' ? -1 : 1) || b.date.localeCompare(a.date));
+
+  document.getElementById('deals-list').innerHTML = sorted.length ? sorted.map(d => `
+    <div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(d.item)}</strong><div class="cf-card-sub">${escapeHtml(d.buyer)} · ${escapeHtml(d.platform)}</div></div>
+        <span class="pill ${d.status==='Agreed'?'pill-green':'pill-yellow'}">${escapeHtml(d.status)}</span>
+      </div>
+      <div style="font-size:18px;font-weight:700;font-family:var(--font-mono);margin-top:10px;">${fmtMoney(d.price)}</div>
+      ${d.notes ? `<div class="cf-card-sub" style="margin-top:4px;">${escapeHtml(d.notes)}</div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:12px;">
+        ${d.status==='Agreed' ? `<button class="btn btn-primary btn-sm" style="flex:1;" onclick="markDealPaid('${d.id}')">✓ Mark Paid</button>` : ''}
+        <button class="icon-btn" onclick="openDealModal('${d.id}')">✏️</button>
+        <button class="icon-btn" onclick="deleteDeal('${d.id}')">🗑️</button>
+      </div>
+    </div>`).join('') : `<div class="empty-state"><p>No deals yet. Click "+ Add Deal" when you start negotiating with a buyer.</p></div>`;
+}
+
+function openDealModal(id){
+  document.getElementById('deal-edit-id').value = id || '';
+  document.getElementById('deal-modal-title').textContent = id ? 'Edit Deal' : 'Add Deal';
+  if (id) {
+    const d = DB.deals.find(x => x.id === id);
+    document.getElementById('deal-buyer').value = d.buyer;
+    document.getElementById('deal-platform').value = d.platform;
+    document.getElementById('deal-status').value = d.status;
+    document.getElementById('deal-item').value = d.item;
+    document.getElementById('deal-price').value = d.price;
+    document.getElementById('deal-notes').value = d.notes || '';
+  } else {
+    document.getElementById('deal-buyer').value = '';
+    document.getElementById('deal-platform').value = 'eBay';
+    document.getElementById('deal-status').value = 'Negotiating';
+    document.getElementById('deal-item').value = '';
+    document.getElementById('deal-price').value = '';
+    document.getElementById('deal-notes').value = '';
+  }
+  openModalEl('deal-modal');
+}
+
+function saveDeal(){
+  const id = document.getElementById('deal-edit-id').value;
+  const buyer = document.getElementById('deal-buyer').value.trim();
+  const item = document.getElementById('deal-item').value.trim();
+  if (!buyer || !item) { alert('Please enter a buyer and an item.'); return; }
+  const data = {
+    buyer,
+    platform: document.getElementById('deal-platform').value,
+    status: document.getElementById('deal-status').value,
+    item,
+    price: num(document.getElementById('deal-price').value),
+    notes: document.getElementById('deal-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.deals.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    data.date = todayISO();
+    data.loggedBy = currentUserEmail();
+    DB.deals.push(data);
+  }
+  closeModal('deal-modal');
+  save();
+}
+
+function deleteDeal(id){
+  if (!confirm('Delete this deal?')) return;
+  DB.deals = DB.deals.filter(d => d.id !== id);
+  save();
+}
+
+function markDealPaid(id){
+  const deal = DB.deals.find(d => d.id === id);
+  if (!deal) return;
+  openSaleModal(null, deal.item);
+  document.getElementById('sale-platform').value = deal.platform || 'Other';
+  document.getElementById('sale-price').value = deal.price || '';
+  document.getElementById('sale-deal-id').value = deal.id;
+  computeSalePreview();
 }
 
 // ---------------------------------------------------------------
