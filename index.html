@@ -396,6 +396,8 @@ table.tbl tr:hover{background:#f7f8fb;}
         </div>
       </div>
 
+      <div class="card" id="cf-baseline-banner" style="margin-bottom:18px;"></div>
+
       <div class="cf-kpis" style="margin-bottom:20px;">
         <div class="stat-card"><div class="stat-value" id="cf-planned">€0</div><div class="stat-label">Planned</div><div class="stat-sub">Not yet ordered</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-out">€0</div><div class="stat-label">Cash Out</div><div class="stat-sub">Paid to suppliers</div></div>
@@ -592,6 +594,23 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Starting Balance modal -->
+<div class="modal-overlay" id="balance-modal">
+  <div class="modal">
+    <h3>Set Starting Balance</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin:-8px 0 16px;">Locks in a known cash position as of a date. From then on, Current Balance only tracks new cash in vs new cash out — no need to reconstruct every historical order or sale.</p>
+    <div class="form-group"><label>As Of Date</label><input type="date" id="balance-date"></div>
+    <div class="form-group"><label>Balance (€)</label><input type="number" step="0.01" id="balance-amount"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;">
+      <button class="btn btn-secondary btn-sm" onclick="clearBalanceBaseline()">Remove Baseline</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('balance-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveBalanceBaseline()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Deal modal -->
 <div class="modal-overlay" id="deal-modal">
   <div class="modal">
@@ -640,11 +659,7 @@ let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
-  // The day you started tracking supplier costs as real Orders. Sales before this date only
-  // have reliable per-sale profit (no matching order cost), so the balance uses profit for
-  // them; from this date on it uses the regular cash-in-vs-cash-out rule. Set once, permanently,
-  // the first time this app runs for you — it will not change after that.
-  return { sales: [], inventory: [], orders: [], deals: [], cashFlowCutoff: todayISO() };
+  return { sales: [], inventory: [], orders: [], deals: [], balanceBaseline: null, balanceBaselineDate: null };
 }
 
 function loadLocal(){
@@ -683,6 +698,14 @@ function saleProfit(s){ return (s.qty*s.price) - (s.qty*s.cost) - num(s.fee) - n
 function saleRevenue(s){ return s.qty*s.price; }
 function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping); }
 function saleCashReceived(s){ return s.cashStatus !== 'pending'; }
+
+// All-time cash position ignoring any starting-balance baseline — used as the suggested
+// value when setting a new baseline, and as the Current Balance formula when no baseline is set.
+function allTimeCashBalance(){
+  const cashOut = DB.orders.filter(o => o.status !== 'Cancelled' && orderStage(o) !== 'notyet').reduce((a,o) => a + orderTotalCost(o), 0);
+  const grossCashIn = DB.sales.filter(saleCashReceived).reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
+  return grossCashIn - cashOut;
+}
 
 function markSaleCashReceived(id){
   const s = DB.sales.find(x => x.id === id);
@@ -1170,7 +1193,25 @@ function orderMiniPipeline(o, stage){
 }
 
 function renderCashFlow(){
-  const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled');
+  const baselineDate = DB.balanceBaselineDate;
+  const isPost = (d) => !baselineDate || d > baselineDate;
+
+  document.getElementById('cf-baseline-banner').innerHTML = baselineDate ? `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div><strong>Starting balance: ${fmtMoney(DB.balanceBaseline||0)}</strong> as of ${fmtDate(baselineDate)}
+        <div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">Orders and sales dated on/before this are excluded from the pipeline below — only what's happened since counts toward Current Balance.</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="openBalanceModal()">Edit</button>
+    </div>` : `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div><strong>No starting balance set</strong>
+        <div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">Current Balance is tracking your full order/sale history. Once your historical supplier orders are hard to fully reconstruct, set a starting balance to switch to simple cash-in/cash-out from a known date.</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="openBalanceModal()">Set Starting Balance</button>
+    </div>`;
+
+  // Orders/sales on or before the baseline date are excluded from the live pipeline — they've
+  // already been folded into the starting balance number, so tracking their sold/paid status
+  // individually would be redundant (and often unreliable for backfilled historical data).
+  const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled' && isPost(o.date));
   const staged = nonCancelled.map(o => ({ o, stage: orderStage(o) }));
 
   const notYet   = staged.filter(x => x.stage === 'notyet');
@@ -1185,20 +1226,19 @@ function renderCashFlow(){
   const transitValue = ordered.reduce((a,x) => a + orderTotalCost(x.o), 0);
   const onHandValue = arrived.reduce((a,x) => a + orderItems(x.o).reduce((b,it) => b + (it.qty - orderItemSoldQty(x.o,it))*it.cost, 0), 0);
 
-  const receivedSales = DB.sales.filter(s => saleCashReceived(s));
+  // Profit and Awaiting Payment are standalone performance figures computed from every sale
+  // ever logged (each sale carries its own cost, independent of Order tracking), so they stay
+  // all-time regardless of the baseline.
+  const allReceivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
-  // "Profit" and "Awaiting Payment" use real profit (revenue minus cost, fees and shipping) —
-  // using each sale's own recorded cost, so it stays correct regardless of whether it's linked
-  // to a tracked order. These are standalone performance figures, not meant to be netted against
-  // Cash Out (which already includes the cost of sold items) — doing so would double-count that cost.
   const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
-  const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
-  // Current Balance: all-time real cash in vs real cash out — every euro actually received from
-  // a paid sale, minus every euro ever paid to a supplier (regardless of date, sold or unsold).
-  // This only stays accurate once every real supplier order is entered as an Order record —
-  // any spend missing from Orders won't be reflected here.
+  const totalProfit = allReceivedSales.reduce((a,s) => a + saleProfit(s), 0);
+
+  // Current Balance: baseline (if any) plus real cash in vs real cash out since that date.
+  // With no baseline set, this is the same all-time formula as allTimeCashBalance().
+  const receivedSales = allReceivedSales.filter(s => isPost(s.cashInDate || s.date));
   const grossCashIn = receivedSales.reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
-  const currentBalance = grossCashIn - cashOut;
+  const currentBalance = (DB.balanceBaseline || 0) + grossCashIn - cashOut;
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1207,7 +1247,9 @@ function renderCashFlow(){
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
   document.getElementById('cf-balance').textContent = fmtMoney(currentBalance);
-  document.getElementById('cf-balance-sub').textContent = 'All-time: received − paid to suppliers';
+  document.getElementById('cf-balance-sub').textContent = baselineDate
+    ? `Since ${fmtDate(baselineDate)}: baseline + received − paid`
+    : 'All-time: received − paid to suppliers';
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
@@ -1316,9 +1358,14 @@ function renderCashFlow(){
   pendingSales.forEach(s => events.push({
     date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: false
   }));
+  if (baselineDate) events.push({
+    date: baselineDate, type: 'start', label: 'Starting Balance', sub: 'Set manually — folds in everything before this date', amount: DB.balanceBaseline || 0, realized: false
+  });
   events.sort((a,b) => b.date.localeCompare(a.date));
 
-  let bal = 0;
+  // Seed with the baseline itself (0 if none set) — the synthetic "start" event above is
+  // display-only (realized:false) so it isn't added a second time here.
+  let bal = DB.balanceBaseline || 0;
   const chron = [...events].reverse();
   chron.forEach(e => { if (e.realized) bal += e.amount; e._running = bal; });
 
@@ -1327,8 +1374,8 @@ function renderCashFlow(){
       ${events.map(e => `<tr>
         <td>${fmtDate(e.date)}</td>
         <td><strong>${escapeHtml(e.label)}</strong><br><span style="color:var(--text-muted);font-size:11px;">${escapeHtml(e.sub)}</span></td>
-        <td>${e.type==='in' ? '<span class="pill pill-green">Cash In</span>' : e.type==='out' ? '<span class="pill pill-red">Cash Out</span>' : '<span class="pill pill-yellow">Pending</span>'}</td>
-        <td style="color:${e.realized ? (e.amount>=0?'#16a34a':'#dc2626') : 'var(--text-muted)'};font-weight:700;">${e.amount>=0?'+':''}${fmtMoney(e.amount)}</td>
+        <td>${e.type==='start' ? '<span class="pill" style="background:var(--border);color:var(--text-secondary);">🏁 Baseline</span>' : e.type==='in' ? '<span class="pill pill-green">Cash In</span>' : e.type==='out' ? '<span class="pill pill-red">Cash Out</span>' : '<span class="pill pill-yellow">Pending</span>'}</td>
+        <td style="color:${e.type==='start' ? 'var(--text)' : e.realized ? (e.amount>=0?'#16a34a':'#dc2626') : 'var(--text-muted)'};font-weight:700;">${e.type==='start' ? '' : (e.amount>=0?'+':'')}${fmtMoney(e.amount)}</td>
         <td>${fmtMoney(e._running)}</td>
       </tr>`).join('')}
     </tbody></table>` : `<div class="empty-state"><p>No cash flow activity yet.</p></div>`;
@@ -1478,6 +1525,28 @@ function saveOrder(){
 function deleteOrder(id){
   if (!confirm('Delete this order?')) return;
   DB.orders = DB.orders.filter(o => o.id !== id);
+  save();
+}
+
+function openBalanceModal(){
+  const suggested = DB.balanceBaseline != null ? DB.balanceBaseline : allTimeCashBalance();
+  document.getElementById('balance-date').value = DB.balanceBaselineDate || todayISO();
+  document.getElementById('balance-amount').value = suggested.toFixed(2);
+  openModalEl('balance-modal');
+}
+
+function saveBalanceBaseline(){
+  DB.balanceBaselineDate = document.getElementById('balance-date').value || todayISO();
+  DB.balanceBaseline = num(document.getElementById('balance-amount').value);
+  closeModal('balance-modal');
+  save();
+}
+
+function clearBalanceBaseline(){
+  if (!confirm('Remove the starting balance and go back to all-time tracking?')) return;
+  DB.balanceBaseline = null;
+  DB.balanceBaselineDate = null;
+  closeModal('balance-modal');
   save();
 }
 
