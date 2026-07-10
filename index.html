@@ -1199,7 +1199,7 @@ function renderCashFlow(){
   document.getElementById('cf-baseline-banner').innerHTML = baselineDate ? `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div><strong>Starting balance: ${fmtMoney(DB.balanceBaseline||0)}</strong> as of ${fmtDate(baselineDate)}
-        <div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">Orders and sales dated on/before this are excluded from the pipeline below — only what's happened since counts toward Current Balance.</div></div>
+        <div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">Current Balance only counts cash in/out from after this date — but every order and sale below still shows up and can still be actioned, whenever it happened.</div></div>
       <button class="btn btn-secondary btn-sm" onclick="openBalanceModal()">Edit</button>
     </div>` : `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -1208,10 +1208,10 @@ function renderCashFlow(){
       <button class="btn btn-secondary btn-sm" onclick="openBalanceModal()">Set Starting Balance</button>
     </div>`;
 
-  // Orders/sales on or before the baseline date are excluded from the live pipeline — they've
-  // already been folded into the starting balance number, so tracking their sold/paid status
-  // individually would be redundant (and often unreliable for backfilled historical data).
-  const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled' && isPost(o.date));
+  // The pipeline/order cards below always show every order, regardless of the baseline — you
+  // still need to log sales and mark payments against stock you bought before that date. Only
+  // the Cash Out figure (and thus Current Balance) restricts itself to orders placed since then.
+  const nonCancelled = DB.orders.filter(o => o.status !== 'Cancelled');
   const staged = nonCancelled.map(o => ({ o, stage: orderStage(o) }));
 
   const notYet   = staged.filter(x => x.stage === 'notyet');
@@ -1220,7 +1220,7 @@ function renderCashFlow(){
   const sold     = staged.filter(x => x.stage === 'sold');
   const complete = staged.filter(x => x.stage === 'complete');
 
-  const placedOrders = staged.filter(x => x.stage !== 'notyet');
+  const placedOrders = staged.filter(x => x.stage !== 'notyet' && isPost(x.o.date));
   const plannedValue = notYet.reduce((a,x) => a + orderTotalCost(x.o), 0);
   const cashOut = placedOrders.reduce((a,x) => a + orderTotalCost(x.o), 0);
   const transitValue = ordered.reduce((a,x) => a + orderTotalCost(x.o), 0);
