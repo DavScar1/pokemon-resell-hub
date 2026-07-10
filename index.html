@@ -1193,14 +1193,12 @@ function renderCashFlow(){
   // Cash Out (which already includes the cost of sold items) — doing so would double-count that cost.
   const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
   const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
-  // Current Balance: before the cutoff date (when supplier costs weren't yet tracked as Orders),
-  // only profit is trustworthy, so historical sales contribute their profit. From the cutoff date
-  // on, real Order costs exist, so that period uses the regular cash-in-minus-cash-out rule instead.
-  const cutoff = DB.cashFlowCutoff || todayISO();
-  const historicalProfit = receivedSales.filter(s => s.date < cutoff).reduce((a,s) => a + saleProfit(s), 0);
-  const postCutoffCashIn = receivedSales.filter(s => s.date >= cutoff).reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
-  const postCutoffCashOut = placedOrders.filter(x => x.o.date >= cutoff).reduce((a,x) => a + orderTotalCost(x.o), 0);
-  const currentBalance = historicalProfit + postCutoffCashIn - postCutoffCashOut;
+  // Current Balance: all-time real cash in vs real cash out — every euro actually received from
+  // a paid sale, minus every euro ever paid to a supplier (regardless of date, sold or unsold).
+  // This only stays accurate once every real supplier order is entered as an Order record —
+  // any spend missing from Orders won't be reflected here.
+  const grossCashIn = receivedSales.reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
+  const currentBalance = grossCashIn - cashOut;
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1209,7 +1207,7 @@ function renderCashFlow(){
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
   document.getElementById('cf-balance').textContent = fmtMoney(currentBalance);
-  document.getElementById('cf-balance-sub').textContent = `Profit before ${fmtDate(cutoff)}, cash after`;
+  document.getElementById('cf-balance-sub').textContent = 'All-time: received − paid to suppliers';
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
@@ -1308,22 +1306,13 @@ function renderCashFlow(){
   }).join('') : `<div class="empty-state"><p>No orders yet. Click "+ Add Order" on the Supplier Calendar to add one.</p></div>`;
 
   // ---- Full ledger ----
-  // Orders before the cutoff are left out of the ledger entirely (that period is tracked via
-  // profit, not cash-out, since no reliable order cost existed for it) — see Current Balance above.
   const events = [];
-  placedOrders.filter(x => x.o.date >= cutoff).forEach(x => { const o = x.o; events.push({
+  placedOrders.forEach(x => { const o = x.o; events.push({
     date: o.date, type: 'out', label: `${orderDisplayName(o)} × ${orderTotalQty(o)}`, sub: `Paid to ${o.supplier}`, amount: -orderTotalCost(o), realized: true
   }); });
-  receivedSales.forEach(s => {
-    const historical = s.date < cutoff;
-    events.push({
-      date: s.cashInDate || s.date, type: 'in',
-      label: `${s.item} × ${s.qty}`,
-      sub: historical ? `Sold on ${s.platform} · profit (pre-cutoff)` : `Sold on ${s.platform}`,
-      amount: historical ? saleProfit(s) : saleRevenue(s) - num(s.fee) - num(s.shipping),
-      realized: true
-    });
-  });
+  receivedSales.forEach(s => events.push({
+    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: true
+  }));
   pendingSales.forEach(s => events.push({
     date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: false
   }));
