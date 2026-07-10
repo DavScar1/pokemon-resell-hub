@@ -175,6 +175,9 @@ table.tbl tr:hover{background:#f7f8fb;}
 .modal{background:var(--bg-elevated);border:1px solid var(--border);border-radius:16px;padding:26px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(23,26,38,.18);}
 .modal h3{font-size:17px;font-weight:800;margin-bottom:18px;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.order-item-row{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+.order-item-row input[type="text"]{flex:2;min-width:0;}
+.order-item-row input[type="number"]{flex:1;min-width:0;}
 .modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end;}
 
 /* ---------- Calendar ---------- */
@@ -490,6 +493,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <h3 id="sale-modal-title">Log Sale</h3>
     <input type="hidden" id="sale-edit-id">
     <input type="hidden" id="sale-order-id">
+    <input type="hidden" id="sale-order-item-id">
     <input type="hidden" id="sale-deal-id">
     <div id="sale-order-banner" style="display:none;font-size:12px;color:var(--primary);background:var(--primary-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;"></div>
     <div class="form-row">
@@ -564,11 +568,12 @@ table.tbl tr:hover{background:#f7f8fb;}
   <div class="modal">
     <h3 id="order-modal-title">Add Supplier Order</h3>
     <input type="hidden" id="order-edit-id">
+    <div class="form-group"><label>Order Name <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional, e.g. "June #2")</span></label><input type="text" id="order-name" placeholder="e.g. June #2"></div>
     <div class="form-group"><label>Supplier</label><input type="text" id="order-supplier" placeholder="e.g. Pokémon Center, Costco"></div>
-    <div class="form-group"><label>Item</label><input type="text" id="order-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Quantity</label><input type="number" id="order-qty" min="1" value="1"></div>
-      <div class="form-group"><label>Unit Cost (€)</label><input type="number" id="order-cost" min="0" step="0.01"></div>
+    <div class="form-group">
+      <label>Products</label>
+      <div id="order-items-list"></div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addOrderItemRow()" style="margin-top:2px;">+ Add Product</button>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Order Date</label><input type="date" id="order-date"></div>
@@ -764,8 +769,8 @@ function renderDashboard(){
     .sort((a,b) => a.arrival.localeCompare(b.arrival)).slice(0,6);
   document.getElementById('dash-upcoming-orders').innerHTML = upcoming.length ? upcoming.map(o => { const meta = ORDER_STAGE_META[orderStage(o)]; return `
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
-      <div><strong>${escapeHtml(o.item)}</strong><br><span style="color:var(--text-muted);font-size:11.5px;">${escapeHtml(o.supplier)} · arriving ${fmtDate(o.arrival)}</span></div>
-      <div style="text-align:right;"><span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span><br><span style="font-size:11.5px;">${fmtMoney(o.qty*o.cost)}</span></div>
+      <div><strong>${escapeHtml(orderDisplayName(o))}</strong><br><span style="color:var(--text-muted);font-size:11.5px;">${escapeHtml(o.supplier)} · arriving ${fmtDate(o.arrival)}</span></div>
+      <div style="text-align:right;"><span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span><br><span style="font-size:11.5px;">${fmtMoney(orderTotalCost(o))}</span></div>
     </div>`; }).join('') : `<div class="empty-state"><p>No upcoming orders.</p></div>`;
 }
 
@@ -805,15 +810,17 @@ function renderSales(){
     </tbody></table>` : `<div class="empty-state"><p>No sales logged yet. Click "+ Log Sale" to add one.</p></div>`;
 }
 
-function openSaleModal(id, prefillItem, orderId){
+function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
   document.getElementById('sale-edit-id').value = id || '';
   document.getElementById('sale-modal-title').textContent = id ? 'Edit Sale' : 'Log Sale';
   const banner = document.getElementById('sale-order-banner');
   banner.style.display = 'none';
   document.getElementById('sale-deal-id').value = '';
+  document.getElementById('sale-order-item-id').value = '';
   if (id) {
     const s = DB.sales.find(x => x.id === id);
     document.getElementById('sale-order-id').value = s.orderId || '';
+    document.getElementById('sale-order-item-id').value = s.orderItemId || '';
     document.getElementById('sale-date').value = s.date;
     document.getElementById('sale-platform').value = s.platform;
     document.getElementById('sale-item').value = s.item;
@@ -826,7 +833,7 @@ function openSaleModal(id, prefillItem, orderId){
     document.getElementById('sale-notes').value = s.notes || '';
     if (s.orderId) {
       const o = DB.orders.find(x => x.id === s.orderId);
-      if (o) { banner.textContent = `Linked to order: ${o.item} (${o.supplier})`; banner.style.display = ''; }
+      if (o) { banner.textContent = `Linked to order: ${orderDisplayName(o)} (${o.supplier})`; banner.style.display = ''; }
     }
   } else {
     document.getElementById('sale-order-id').value = orderId || '';
@@ -843,10 +850,12 @@ function openSaleModal(id, prefillItem, orderId){
     if (prefillItem) syncSaleItemFromInventory();
     if (orderId) {
       const o = DB.orders.find(x => x.id === orderId);
-      if (o) {
-        const remaining = o.qty - orderSoldQty(o);
+      const item = o && (orderItems(o).find(it => it.id === orderItemId) || orderItems(o)[0]);
+      if (o && item) {
+        document.getElementById('sale-order-item-id').value = item.id;
+        const remaining = item.qty - orderItemSoldQty(o, item);
         document.getElementById('sale-qty').value = Math.max(1, remaining);
-        banner.textContent = `Selling from order: ${o.item} (${o.supplier}) — ${remaining} of ${o.qty} left`;
+        banner.textContent = `Selling from order: ${orderDisplayName(o)} (${o.supplier}) — ${remaining} of ${item.qty} left`;
         banner.style.display = '';
       }
     }
@@ -880,6 +889,7 @@ function computeSalePreview(){
 function saveSale(){
   const id = document.getElementById('sale-edit-id').value;
   const orderId = document.getElementById('sale-order-id').value;
+  const orderItemId = document.getElementById('sale-order-item-id').value;
   const dealId = document.getElementById('sale-deal-id').value;
   const item = document.getElementById('sale-item').value.trim();
   if (!item) { alert('Please enter an item name.'); return; }
@@ -888,8 +898,9 @@ function saveSale(){
 
   if (orderId && !id) {
     const o = DB.orders.find(x => x.id === orderId);
-    if (o) {
-      const remaining = o.qty - orderSoldQty(o);
+    const orderItem = o && (orderItems(o).find(it => it.id === orderItemId) || orderItems(o)[0]);
+    if (o && orderItem) {
+      const remaining = orderItem.qty - orderItemSoldQty(o, orderItem);
       if (qty > remaining) { alert(`Only ${remaining} unit${remaining===1?'':'s'} left unsold on this order.`); return; }
     }
   }
@@ -905,6 +916,7 @@ function saveSale(){
     shipping: num(document.getElementById('sale-shipping').value),
     notes: document.getElementById('sale-notes').value.trim(),
     orderId: orderId || '',
+    orderItemId: orderItemId || '',
   };
 
   const invItem = DB.inventory.find(i => i.name.toLowerCase() === item.toLowerCase());
@@ -1138,12 +1150,13 @@ function markDealPaid(id){
 function toggleCfCompleted(){ cfShowCompleted = !cfShowCompleted; renderCashFlow(); }
 
 function orderMiniPipeline(o, stage){
-  const soldQty = orderSoldQty(o);
+  const soldQty = orderTotalSoldQty(o);
+  const totalQty = orderTotalQty(o);
   const notYetArrived = stage==='ordered' || stage==='notyet';
   const steps = [
     {icon:'💸', label:'Ordered',  done: stage!=='notyet',              date: stage==='notyet' ? `plans for ${fmtDate(o.date)}` : fmtDate(o.date)},
     {icon:'📦', label:'Arrived',  done: !notYetArrived,                date: notYetArrived ? `est. ${fmtDate(o.arrival)}` : fmtDate(o.arrival)},
-    {icon:'🛍', label:'Sold',     done: stage==='sold'||stage==='complete', date: `${soldQty}/${o.qty}`},
+    {icon:'🛍', label:'Sold',     done: stage==='sold'||stage==='complete', date: `${soldQty}/${totalQty}`},
     {icon:'✅', label:'Complete', done: stage==='complete',            date: stage==='complete' ? 'Paid' : '—'},
   ];
   return `<div class="cf-mini-pipeline">${steps.map((s,i) => `
@@ -1163,10 +1176,10 @@ function renderCashFlow(){
   const complete = staged.filter(x => x.stage === 'complete');
 
   const placedOrders = staged.filter(x => x.stage !== 'notyet');
-  const plannedValue = notYet.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
-  const cashOut = placedOrders.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
-  const transitValue = ordered.reduce((a,x) => a + x.o.qty*x.o.cost, 0);
-  const onHandValue = arrived.reduce((a,x) => a + (x.o.qty - orderSoldQty(x.o))*x.o.cost, 0);
+  const plannedValue = notYet.reduce((a,x) => a + orderTotalCost(x.o), 0);
+  const cashOut = placedOrders.reduce((a,x) => a + orderTotalCost(x.o), 0);
+  const transitValue = ordered.reduce((a,x) => a + orderTotalCost(x.o), 0);
+  const onHandValue = arrived.reduce((a,x) => a + orderItems(x.o).reduce((b,it) => b + (it.qty - orderItemSoldQty(x.o,it))*it.cost, 0), 0);
 
   const receivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
@@ -1212,14 +1225,14 @@ function renderCashFlow(){
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--yellow-light);color:var(--yellow);">🛍</div>
       <div class="cf-stage-label">Sold, Unpaid</div>
-      <div class="cf-stage-value">${fmtMoney(sold.reduce((a,x)=>a+x.o.qty*x.o.cost,0))}</div>
+      <div class="cf-stage-value">${fmtMoney(sold.reduce((a,x)=>a+orderTotalCost(x.o),0))}</div>
       <div class="cf-stage-sub">${sold.length} order${sold.length===1?'':'s'}</div>
     </div>
     <div class="cf-stage-arrow">→</div>
     <div class="cf-stage">
       <div class="cf-stage-icon" style="background:var(--green-light);color:var(--green);">✅</div>
       <div class="cf-stage-label">Complete</div>
-      <div class="cf-stage-value">${fmtMoney(complete.reduce((a,x)=>a+x.o.qty*x.o.cost,0))}</div>
+      <div class="cf-stage-value">${fmtMoney(complete.reduce((a,x)=>a+orderTotalCost(x.o),0))}</div>
       <div class="cf-stage-sub">${complete.length} order${complete.length===1?'':'s'}</div>
     </div>`;
 
@@ -1234,8 +1247,8 @@ function renderCashFlow(){
 
   document.getElementById('cf-orders').innerHTML = visible.length ? visible.map(({o, stage}) => {
     const meta = ORDER_STAGE_META[stage];
-    const soldQty = orderSoldQty(o);
-    const remaining = o.qty - soldQty;
+    const soldQty = orderTotalSoldQty(o);
+    const totalQty = orderTotalQty(o);
     let action = '';
     if (stage === 'notyet') {
       action = o.status === 'Not Ordered'
@@ -1243,29 +1256,49 @@ function renderCashFlow(){
         : `<div class="cf-card-sub" style="margin-top:12px;">Becomes "Ordered" automatically on ${fmtDate(o.date)}.</div>`;
     } else if (stage === 'ordered') {
       action = `<button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderArrived('${o.id}')">Mark Arrived</button>`;
-    } else if (stage === 'arrived') {
-      action = `<button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="openSaleModal(null,'${escapeHtml(o.item)}','${o.id}')">+ Log Sale (${remaining} left)</button>`;
-    } else if (stage === 'sold') {
-      action = `<button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="markOrderAllCashReceived('${o.id}')">✓ Mark Cash Received</button>`;
     }
-    const progress = stage === 'arrived' ? `
-      <div class="progress-bar" style="margin-top:10px;"><div class="progress-bar-fill" style="width:${Math.round(soldQty/o.qty*100)}%;"></div></div>
-      <div class="cf-card-sub" style="margin-top:4px;">${soldQty} of ${o.qty} sold</div>` : '';
+    const progress = (stage === 'arrived' || stage === 'sold') ? `
+      <div class="progress-bar" style="margin-top:10px;"><div class="progress-bar-fill" style="width:${Math.round(soldQty/totalQty*100)}%;"></div></div>
+      <div class="cf-card-sub" style="margin-top:4px;">${soldQty} of ${totalQty} sold</div>` : '';
+    // "Arrived": one row per product still awaiting sale, each with its own Log Sale action.
+    const itemsBreakdown = stage === 'arrived' ? orderItems(o).map(it => {
+      const itSold = orderItemSoldQty(o, it);
+      const itRemaining = it.qty - itSold;
+      if (itRemaining <= 0) return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
+        <span>${escapeHtml(it.item)}</span><span style="color:var(--text-muted);">${itSold}/${it.qty} sold</span>
+      </div>`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
+        <span>${escapeHtml(it.item)} <span style="color:var(--text-muted);">— ${itSold}/${it.qty} sold</span></span>
+        <button class="btn btn-primary btn-sm" onclick="openSaleModal(null,'${escapeHtml(it.item)}','${o.id}',null,'${it.id}')">+ Log Sale (${itRemaining} left)</button>
+      </div>`;
+    }).join('') : '';
+    // "Sold"/"Complete" (or partially sold while still Arrived): each linked sale gets its own
+    // payment toggle, so you can mark individual buyers' payments as they come in.
+    const linkedSales = orderLinkedSales(o);
+    const salesBreakdown = linkedSales.length ? `<div style="margin-top:${itemsBreakdown?0:10}px;">` + linkedSales.map(s => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
+        <span>${escapeHtml(s.item)} × ${s.qty} <span style="color:var(--text-muted);">— ${fmtMoney(saleRevenue(s))}</span></span>
+        ${saleCashReceived(s)
+          ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
+          : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
+      </div>`).join('') + `</div>` : '';
     return `<div class="cf-card">
       <div class="cf-card-top">
-        <div><strong>${escapeHtml(o.item)}</strong><div class="cf-card-sub">${escapeHtml(o.supplier)} · ${fmtMoney(o.qty*o.cost)}</div></div>
+        <div><strong>${escapeHtml(orderDisplayName(o))}</strong><div class="cf-card-sub">${escapeHtml(o.supplier)} · ${fmtMoney(orderTotalCost(o))}</div></div>
         <span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span>
       </div>
       ${orderMiniPipeline(o, stage)}
       ${progress}
       ${action}
+      ${itemsBreakdown}
+      ${salesBreakdown}
     </div>`;
   }).join('') : `<div class="empty-state"><p>No orders yet. Click "+ Add Order" on the Supplier Calendar to add one.</p></div>`;
 
   // ---- Full ledger ----
   const events = [];
   placedOrders.forEach(x => { const o = x.o; events.push({
-    date: o.date, type: 'out', label: `${o.item} × ${o.qty}`, sub: `Paid to ${o.supplier}`, amount: -(o.qty*o.cost), realized: true
+    date: o.date, type: 'out', label: `${orderDisplayName(o)} × ${orderTotalQty(o)}`, sub: `Paid to ${o.supplier}`, amount: -orderTotalCost(o), realized: true
   }); });
   receivedSales.forEach(s => events.push({
     date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · profit`, amount: saleProfit(s), realized: true
@@ -1323,7 +1356,7 @@ function renderCalendar(){
     const events = byDate[dateStr] || [];
     html += `<div class="cal-cell ${dateStr===todayStr?'today':''}">
       <div class="cal-date">${d}</div>
-      ${events.map(e => `<span class="cal-badge" style="background:${e.type==='order'?'#2563eb':'#0891b2'};" title="${escapeHtml(e.o.item)}">${e.type==='order'?'📤':'📦'} ${escapeHtml(e.o.item)}</span>`).join('')}
+      ${events.map(e => `<span class="cal-badge" style="background:${e.type==='order'?'#2563eb':'#0891b2'};" title="${escapeHtml(orderDisplayName(e.o))}">${e.type==='order'?'📤':'📦'} ${escapeHtml(orderDisplayName(e.o))}</span>`).join('')}
     </div>`;
   }
   document.getElementById('cal-grid').innerHTML = html;
@@ -1331,13 +1364,13 @@ function renderCalendar(){
   const rows = [...DB.orders].sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('orders-list').innerHTML = rows.length ? `
     <table class="tbl"><thead><tr>
-      <th>Item</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Order Date</th><th>Arrival</th><th>Stage</th><th></th>
+      <th>Order</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Order Date</th><th>Arrival</th><th>Stage</th><th></th>
     </tr></thead><tbody>
       ${rows.map(o => { const meta = ORDER_STAGE_META[orderStage(o)]; return `<tr>
-        <td><strong>${escapeHtml(o.item)}</strong></td>
+        <td><strong>${escapeHtml(orderDisplayName(o))}</strong></td>
         <td>${escapeHtml(o.supplier)}</td>
-        <td>${o.qty}</td>
-        <td>${fmtMoney(o.qty*o.cost)}</td>
+        <td>${orderTotalQty(o)}</td>
+        <td>${fmtMoney(orderTotalCost(o))}</td>
         <td>${fmtDate(o.date)}</td>
         <td>${fmtDate(o.arrival)}</td>
         <td><span class="pill" style="background:${meta.bg};color:${meta.color};">${meta.icon} ${meta.label}</span></td>
@@ -1350,50 +1383,81 @@ function renderCalendar(){
     </tbody></table>` : `<div class="empty-state"><p>No supplier orders yet. Click "+ Add Order" to plan a restock.</p></div>`;
 }
 
+let _orderItemsDraft = [];
+
+function renderOrderItemsDraft(){
+  document.getElementById('order-items-list').innerHTML = _orderItemsDraft.map((row, idx) => `
+    <div class="order-item-row">
+      <input type="text" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box" value="${escapeHtml(row.item)}" oninput="_orderItemsDraft[${idx}].item=this.value">
+      <input type="number" min="1" placeholder="Qty" value="${row.qty}" oninput="_orderItemsDraft[${idx}].qty=num(this.value)">
+      <input type="number" min="0" step="0.01" placeholder="Cost €" value="${row.cost}" oninput="_orderItemsDraft[${idx}].cost=num(this.value)">
+      ${_orderItemsDraft.length>1 ? `<button type="button" class="icon-btn" onclick="removeOrderItemRow(${idx})">🗑️</button>` : ''}
+    </div>`).join('');
+}
+
+function addOrderItemRow(item, qty, cost){
+  _orderItemsDraft.push({ item: item||'', qty: qty||1, cost: cost===undefined?'':cost });
+  renderOrderItemsDraft();
+}
+
+function removeOrderItemRow(idx){
+  if (_orderItemsDraft.length <= 1) return;
+  _orderItemsDraft.splice(idx, 1);
+  renderOrderItemsDraft();
+}
+
 function openOrderModal(id, defaultDate){
   document.getElementById('order-edit-id').value = id || '';
   document.getElementById('order-modal-title').textContent = id ? 'Edit Supplier Order' : 'Add Supplier Order';
   if (id) {
     const o = DB.orders.find(x => x.id === id);
+    document.getElementById('order-name').value = o.name || '';
     document.getElementById('order-supplier').value = o.supplier;
-    document.getElementById('order-item').value = o.item;
-    document.getElementById('order-qty').value = o.qty;
-    document.getElementById('order-cost').value = o.cost;
     document.getElementById('order-date').value = o.date;
     document.getElementById('order-arrival').value = o.arrival;
     document.getElementById('order-status').value = o.status;
     document.getElementById('order-notes').value = o.notes || '';
+    _orderItemsDraft = orderItems(o).map(it => ({ item: it.item, qty: it.qty, cost: it.cost }));
   } else {
+    document.getElementById('order-name').value = '';
     document.getElementById('order-supplier').value = '';
-    document.getElementById('order-item').value = '';
-    document.getElementById('order-qty').value = 1;
-    document.getElementById('order-cost').value = '';
     document.getElementById('order-date').value = defaultDate || todayISO();
     document.getElementById('order-arrival').value = defaultDate || todayISO();
     document.getElementById('order-status').value = 'Ordered';
     document.getElementById('order-notes').value = '';
+    _orderItemsDraft = [{ item: '', qty: 1, cost: '' }];
   }
+  renderOrderItemsDraft();
   openModalEl('order-modal');
 }
 
 function saveOrder(){
   const id = document.getElementById('order-edit-id').value;
-  const item = document.getElementById('order-item').value.trim();
+  const name = document.getElementById('order-name').value.trim();
   const supplier = document.getElementById('order-supplier').value.trim();
-  if (!item || !supplier) { alert('Please enter both a supplier and an item.'); return; }
+  if (!supplier) { alert('Please enter a supplier.'); return; }
+  const items = _orderItemsDraft
+    .map(r => ({ item: (r.item||'').trim(), qty: num(r.qty) || 1, cost: num(r.cost) }))
+    .filter(r => r.item);
+  if (!items.length) { alert('Please enter at least one product.'); return; }
+
   const data = {
-    supplier, item,
-    qty: num(document.getElementById('order-qty').value),
-    cost: num(document.getElementById('order-cost').value),
+    name, supplier,
     date: document.getElementById('order-date').value || todayISO(),
     arrival: document.getElementById('order-arrival').value || todayISO(),
     status: document.getElementById('order-status').value,
     notes: document.getElementById('order-notes').value.trim(),
   };
+
   if (id) {
-    Object.assign(DB.orders.find(x => x.id === id), data);
+    const existing = DB.orders.find(x => x.id === id);
+    const existingItems = orderItems(existing);
+    // Preserve existing line-item ids by position so already-linked sales stay matched.
+    data.items = items.map((it, i) => ({ id: existingItems[i] ? existingItems[i].id : uid(), ...it }));
+    Object.assign(existing, data);
   } else {
     data.id = uid();
+    data.items = items.map(it => ({ id: uid(), ...it }));
     data.loggedBy = currentUserEmail();
     DB.orders.push(data);
   }
@@ -1418,30 +1482,66 @@ function markOrderArrived(id){
   const o = DB.orders.find(x => x.id === id);
   if (!o) return;
   o.status = 'Arrived';
-  let item = DB.inventory.find(i => i.name.toLowerCase() === o.item.toLowerCase());
-  if (item) {
-    item.qty += o.qty;
-    item.cost = o.cost;
-  } else {
-    DB.inventory.push({ id: uid(), name: o.item, category: 'Other', qty: o.qty, cost: o.cost, threshold: 0, supplier: o.supplier, notes: '' });
-  }
+  orderItems(o).forEach(it => {
+    let invItem = DB.inventory.find(i => i.name.toLowerCase() === it.item.toLowerCase());
+    if (invItem) {
+      invItem.qty += it.qty;
+      invItem.cost = it.cost;
+    } else {
+      DB.inventory.push({ id: uid(), name: it.item, category: 'Other', qty: it.qty, cost: it.cost, threshold: 0, supplier: o.supplier, notes: '' });
+    }
+  });
   save();
 }
 
 // ---------------------------------------------------------------
 // ORDER LIFECYCLE  (Ordered -> Arrived -> Sold -> Complete)
+// Orders can hold one or more line items (products). Older orders saved
+// before this feature existed only have flat item/qty/cost fields — orderItems()
+// synthesizes a single-item list from those so every helper below works
+// uniformly regardless of which shape the order was saved in.
 // ---------------------------------------------------------------
-function orderSoldQty(o){
-  return DB.sales.filter(s => s.orderId === o.id).reduce((a,s) => a + s.qty, 0);
+function orderItems(o){
+  if (o.items && o.items.length) return o.items;
+  return [{ id: o.id, item: o.item, qty: o.qty, cost: o.cost }];
+}
+
+function orderDisplayName(o){
+  const items = orderItems(o);
+  return o.name || items.map(it => it.item).join(', ');
+}
+
+function orderTotalQty(o){ return orderItems(o).reduce((a,it) => a + it.qty, 0); }
+function orderTotalCost(o){ return orderItems(o).reduce((a,it) => a + it.qty*it.cost, 0); }
+
+function saleMatchesOrderItem(s, order, item){
+  if (s.orderId !== order.id) return false;
+  if (s.orderItemId) return s.orderItemId === item.id;
+  return orderItems(order).length === 1; // legacy sale linked before per-item tracking existed
+}
+
+function orderItemSoldQty(order, item){
+  return DB.sales.filter(s => saleMatchesOrderItem(s, order, item)).reduce((a,s) => a+s.qty, 0);
+}
+
+function orderTotalSoldQty(o){
+  return orderItems(o).reduce((a,it) => a + orderItemSoldQty(o,it), 0);
+}
+
+function orderLinkedSales(o){
+  return DB.sales.filter(s => s.orderId === o.id);
+}
+
+function orderFullySold(o){
+  return orderItems(o).every(it => orderItemSoldQty(o,it) >= it.qty);
 }
 
 function orderStage(o){
   if (o.status === 'Cancelled') return 'cancelled';
   if (o.status === 'Not Ordered') return 'notyet';
   if (o.status !== 'Arrived') return (o.date > todayISO()) ? 'notyet' : 'ordered';
-  const sold = orderSoldQty(o);
-  if (sold < o.qty) return 'arrived';
-  const linked = DB.sales.filter(s => s.orderId === o.id);
+  if (!orderFullySold(o)) return 'arrived';
+  const linked = orderLinkedSales(o);
   const allPaid = linked.length > 0 && linked.every(s => saleCashReceived(s));
   return allPaid ? 'complete' : 'sold';
 }
@@ -1454,15 +1554,6 @@ const ORDER_STAGE_META = {
   complete:  {label:'Complete', icon:'✅', bg:'var(--green-light)',  color:'var(--green)',  step:3},
   cancelled: {label:'Cancelled',icon:'✕',  bg:'rgba(148,163,184,.1)', color:'var(--text-secondary)', step:-2},
 };
-
-function markOrderAllCashReceived(orderId){
-  const today = todayISO();
-  DB.sales.filter(s => s.orderId === orderId && !saleCashReceived(s)).forEach(s => {
-    s.cashStatus = 'received';
-    s.cashInDate = today;
-  });
-  save();
-}
 
 // ---------------------------------------------------------------
 // ANALYTICS
