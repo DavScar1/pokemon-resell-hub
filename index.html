@@ -403,7 +403,7 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div class="stat-card"><div class="stat-value" id="cf-onhand">€0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">€0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">€0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-balance">€0</div><div class="stat-label">Current Balance</div><div class="stat-sub">Profit banked − paid to suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-balance">€0</div><div class="stat-label">Current Balance</div><div class="stat-sub">Received − paid to suppliers</div></div>
       </div>
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
@@ -1183,13 +1183,16 @@ function renderCashFlow(){
 
   const receivedSales = DB.sales.filter(s => saleCashReceived(s));
   const pendingSales = DB.sales.filter(s => !saleCashReceived(s));
-  // Every sale figure here is real profit (revenue minus cost, fees and shipping) — using each
-  // sale's own recorded cost, so it stays correct regardless of whether it's linked to a tracked order.
+  // "Profit" and "Awaiting Payment" use real profit (revenue minus cost, fees and shipping) —
+  // using each sale's own recorded cost, so it stays correct regardless of whether it's linked
+  // to a tracked order. These are standalone performance figures, not meant to be netted against
+  // Cash Out (which already includes the cost of sold items) — doing so would double-count that cost.
   const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
   const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
-  // Current Balance mirrors the ledger's own running total: all profit banked so far minus
-  // everything ever paid to suppliers (including money still tied up in unsold stock).
-  const currentBalance = totalProfit - cashOut;
+  // Current Balance is the true cash position: gross proceeds actually deposited (not re-subtracting
+  // cost, since that already left the bank via Cash Out) minus everything ever paid to suppliers.
+  const grossCashIn = receivedSales.reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
+  const currentBalance = grossCashIn - cashOut;
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1301,10 +1304,10 @@ function renderCashFlow(){
     date: o.date, type: 'out', label: `${orderDisplayName(o)} × ${orderTotalQty(o)}`, sub: `Paid to ${o.supplier}`, amount: -orderTotalCost(o), realized: true
   }); });
   receivedSales.forEach(s => events.push({
-    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · profit`, amount: saleProfit(s), realized: true
+    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: true
   }));
   pendingSales.forEach(s => events.push({
-    date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleProfit(s), realized: false
+    date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: false
   }));
   events.sort((a,b) => b.date.localeCompare(a.date));
 
