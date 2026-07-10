@@ -403,7 +403,7 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div class="stat-card"><div class="stat-value" id="cf-onhand">€0</div><div class="stat-label">Unsold Stock</div><div class="stat-sub">Arrived, not sold</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-awaiting">€0</div><div class="stat-label">Awaiting Payment</div><div class="stat-sub">Profit, not confirmed</div></div>
         <div class="stat-card"><div class="stat-value" id="cf-net">€0</div><div class="stat-label">Profit</div><div class="stat-sub">Sold &amp; paid, after cost</div></div>
-        <div class="stat-card"><div class="stat-value" id="cf-balance">€0</div><div class="stat-label">Current Balance</div><div class="stat-sub">Received − paid to suppliers</div></div>
+        <div class="stat-card"><div class="stat-value" id="cf-balance">€0</div><div class="stat-label">Current Balance</div><div class="stat-sub" id="cf-balance-sub">All time</div></div>
       </div>
 
       <div class="cf-pipeline" id="cf-pipeline"></div>
@@ -640,7 +640,11 @@ let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
-  return { sales: [], inventory: [], orders: [], deals: [] };
+  // The day you started tracking supplier costs as real Orders. Sales before this date only
+  // have reliable per-sale profit (no matching order cost), so the balance uses profit for
+  // them; from this date on it uses the regular cash-in-vs-cash-out rule. Set once, permanently,
+  // the first time this app runs for you — it will not change after that.
+  return { sales: [], inventory: [], orders: [], deals: [], cashFlowCutoff: todayISO() };
 }
 
 function loadLocal(){
@@ -1189,10 +1193,14 @@ function renderCashFlow(){
   // Cash Out (which already includes the cost of sold items) — doing so would double-count that cost.
   const awaiting = pendingSales.reduce((a,s) => a + saleProfit(s), 0);
   const totalProfit = receivedSales.reduce((a,s) => a + saleProfit(s), 0);
-  // Current Balance is the true cash position: gross proceeds actually deposited (not re-subtracting
-  // cost, since that already left the bank via Cash Out) minus everything ever paid to suppliers.
-  const grossCashIn = receivedSales.reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
-  const currentBalance = grossCashIn - cashOut;
+  // Current Balance: before the cutoff date (when supplier costs weren't yet tracked as Orders),
+  // only profit is trustworthy, so historical sales contribute their profit. From the cutoff date
+  // on, real Order costs exist, so that period uses the regular cash-in-minus-cash-out rule instead.
+  const cutoff = DB.cashFlowCutoff || todayISO();
+  const historicalProfit = receivedSales.filter(s => s.date < cutoff).reduce((a,s) => a + saleProfit(s), 0);
+  const postCutoffCashIn = receivedSales.filter(s => s.date >= cutoff).reduce((a,s) => a + saleRevenue(s) - num(s.fee) - num(s.shipping), 0);
+  const postCutoffCashOut = placedOrders.filter(x => x.o.date >= cutoff).reduce((a,x) => a + orderTotalCost(x.o), 0);
+  const currentBalance = historicalProfit + postCutoffCashIn - postCutoffCashOut;
 
   document.getElementById('cf-planned').textContent = fmtMoney(plannedValue);
   document.getElementById('cf-out').textContent = fmtMoney(cashOut);
@@ -1201,6 +1209,7 @@ function renderCashFlow(){
   document.getElementById('cf-awaiting').textContent = fmtMoney(awaiting);
   document.getElementById('cf-net').textContent = fmtMoney(totalProfit);
   document.getElementById('cf-balance').textContent = fmtMoney(currentBalance);
+  document.getElementById('cf-balance-sub').textContent = `Profit before ${fmtDate(cutoff)}, cash after`;
 
   // ---- Pipeline strip ----
   document.getElementById('cf-pipeline').innerHTML = `
@@ -1299,13 +1308,22 @@ function renderCashFlow(){
   }).join('') : `<div class="empty-state"><p>No orders yet. Click "+ Add Order" on the Supplier Calendar to add one.</p></div>`;
 
   // ---- Full ledger ----
+  // Orders before the cutoff are left out of the ledger entirely (that period is tracked via
+  // profit, not cash-out, since no reliable order cost existed for it) — see Current Balance above.
   const events = [];
-  placedOrders.forEach(x => { const o = x.o; events.push({
+  placedOrders.filter(x => x.o.date >= cutoff).forEach(x => { const o = x.o; events.push({
     date: o.date, type: 'out', label: `${orderDisplayName(o)} × ${orderTotalQty(o)}`, sub: `Paid to ${o.supplier}`, amount: -orderTotalCost(o), realized: true
   }); });
-  receivedSales.forEach(s => events.push({
-    date: s.cashInDate || s.date, type: 'in', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform}`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: true
-  }));
+  receivedSales.forEach(s => {
+    const historical = s.date < cutoff;
+    events.push({
+      date: s.cashInDate || s.date, type: 'in',
+      label: `${s.item} × ${s.qty}`,
+      sub: historical ? `Sold on ${s.platform} · profit (pre-cutoff)` : `Sold on ${s.platform}`,
+      amount: historical ? saleProfit(s) : saleRevenue(s) - num(s.fee) - num(s.shipping),
+      realized: true
+    });
+  });
   pendingSales.forEach(s => events.push({
     date: s.date, type: 'pending', label: `${s.item} × ${s.qty}`, sub: `Sold on ${s.platform} · awaiting confirmation`, amount: saleRevenue(s) - num(s.fee) - num(s.shipping), realized: false
   }));
