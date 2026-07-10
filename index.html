@@ -1194,7 +1194,10 @@ function orderMiniPipeline(o, stage){
 
 function renderCashFlow(){
   const baselineDate = DB.balanceBaselineDate;
-  const isPost = (d) => !baselineDate || d > baselineDate;
+  // Inclusive: a sale marked "received" today (cashInDate = today) must count even if the
+  // baseline was also set today — otherwise money confirmed the same day it's set up would
+  // silently vanish from Current Balance instead of landing in either bucket.
+  const isPost = (d) => !baselineDate || d >= baselineDate;
 
   document.getElementById('cf-baseline-banner').innerHTML = baselineDate ? `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
