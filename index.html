@@ -294,6 +294,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="sales" onclick="showPage('sales')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Sales Log</button>
     <button class="nav-item" data-page="inventory" onclick="showPage('inventory')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Inventory</button>
     <button class="nav-item" data-page="deals" onclick="showPage('deals')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Deals</button>
+    <button class="nav-item" data-page="channels" onclick="showPage('channels')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Channels</button>
     <button class="nav-item" data-page="cashflow" onclick="showPage('cashflow')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cash Flow</button>
     <button class="nav-item" data-page="calendar" onclick="showPage('calendar')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Supplier Calendar</button>
     <button class="nav-item" data-page="analytics" onclick="showPage('analytics')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Analytics</button>
@@ -385,6 +386,18 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div class="stat-card"><div class="stat-value" id="deals-potential">€0</div><div class="stat-label">Potential Value</div><div class="stat-sub">All open deals</div></div>
       </div>
       <div class="cf-cards-grid" id="deals-list"></div>
+    </div>
+
+    <!-- ---------------- Channels ---------------- -->
+    <div class="page" id="page-channels">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Channels</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Every place you sell, and whose account it's listed under.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openChannelModal()">+ Add Channel</button>
+      </div>
+      <div class="cf-cards-grid" id="channels-list"></div>
     </div>
 
     <!-- ---------------- Cash Flow ---------------- -->
@@ -642,6 +655,33 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Channel modal -->
+<div class="modal-overlay" id="channel-modal">
+  <div class="modal">
+    <h3 id="channel-modal-title">Add Channel</h3>
+    <input type="hidden" id="channel-edit-id">
+    <div class="form-group"><label>Platform Name</label><input type="text" id="channel-name" placeholder="e.g. eBay, Vinted, Facebook Marketplace"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Account</label>
+        <select id="channel-owner"><option>Dav</option><option>Dan</option></select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="channel-status"><option>Active</option><option>Paused</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Handle / Username <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="text" id="channel-handle" placeholder="e.g. @dav_cards"></div>
+      <div class="form-group"><label>Fee % <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="number" id="channel-fee" min="0" step="0.1" placeholder="e.g. 12.5"></div>
+    </div>
+    <div class="form-group"><label>Store Link <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="text" id="channel-url" placeholder="https://..."></div>
+    <div class="form-group"><label>Notes</label><textarea id="channel-notes" rows="2" placeholder="Anything worth remembering about this account"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('channel-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveChannel()">Save Channel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -659,7 +699,7 @@ let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
-  return { sales: [], inventory: [], orders: [], deals: [], balanceBaseline: null, balanceBaselineDate: null };
+  return { sales: [], inventory: [], orders: [], deals: [], channels: [], balanceBaseline: null, balanceBaselineDate: null };
 }
 
 function loadLocal(){
@@ -754,6 +794,7 @@ function renderCurrentPage(){
   else if (currentPage === 'sales') renderSales();
   else if (currentPage === 'inventory') renderInventory();
   else if (currentPage === 'deals') renderDeals();
+  else if (currentPage === 'channels') renderChannels();
   else if (currentPage === 'cashflow') renderCashFlow();
   else if (currentPage === 'calendar') renderCalendar();
   else if (currentPage === 'analytics') renderAnalytics();
@@ -849,7 +890,7 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-order-id').value = s.orderId || '';
     document.getElementById('sale-order-item-id').value = s.orderItemId || '';
     document.getElementById('sale-date').value = s.date;
-    document.getElementById('sale-platform').value = s.platform;
+    populatePlatformSelect('sale-platform', s.platform);
     document.getElementById('sale-item').value = s.item;
     document.getElementById('sale-category').value = s.category;
     document.getElementById('sale-qty').value = s.qty;
@@ -865,7 +906,7 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
   } else {
     document.getElementById('sale-order-id').value = orderId || '';
     document.getElementById('sale-date').value = todayISO();
-    document.getElementById('sale-platform').value = 'eBay';
+    populatePlatformSelect('sale-platform', '');
     document.getElementById('sale-item').value = prefillItem || '';
     document.getElementById('sale-category').value = 'Booster Box';
     document.getElementById('sale-qty').value = 1;
@@ -1114,14 +1155,14 @@ function openDealModal(id){
   if (id) {
     const d = DB.deals.find(x => x.id === id);
     document.getElementById('deal-buyer').value = d.buyer;
-    document.getElementById('deal-platform').value = d.platform;
+    populatePlatformSelect('deal-platform', d.platform);
     document.getElementById('deal-status').value = d.status;
     document.getElementById('deal-item').value = d.item;
     document.getElementById('deal-price').value = d.price;
     document.getElementById('deal-notes').value = d.notes || '';
   } else {
     document.getElementById('deal-buyer').value = '';
-    document.getElementById('deal-platform').value = 'eBay';
+    populatePlatformSelect('deal-platform', '');
     document.getElementById('deal-status').value = 'Negotiating';
     document.getElementById('deal-item').value = '';
     document.getElementById('deal-price').value = '';
@@ -1165,10 +1206,118 @@ function markDealPaid(id){
   const deal = DB.deals.find(d => d.id === id);
   if (!deal) return;
   openSaleModal(null, deal.item);
-  document.getElementById('sale-platform').value = deal.platform || 'Other';
+  populatePlatformSelect('sale-platform', deal.platform || 'Other');
   document.getElementById('sale-price').value = deal.price || '';
   document.getElementById('sale-deal-id').value = deal.id;
   computeSalePreview();
+}
+
+// ---------------------------------------------------------------
+// CHANNELS  (where you sell, and whose account it's under)
+// ---------------------------------------------------------------
+function channelLabel(c){ return `${c.name} (${c.owner})`; }
+
+// Rebuilds a Platform <select> from the current Channels list (active ones, plus whatever
+// value is already selected so editing an old sale/deal never silently loses its platform).
+function populatePlatformSelect(selectId, currentValue){
+  const sel = document.getElementById(selectId);
+  const options = DB.channels.filter(c => c.status !== 'Paused').map(channelLabel);
+  if (currentValue && !options.includes(currentValue)) options.unshift(currentValue);
+  if (!options.includes('Other')) options.push('Other');
+  sel.innerHTML = options.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  sel.value = currentValue || options[0];
+}
+
+function channelStats(c){
+  const label = channelLabel(c);
+  const matching = DB.sales.filter(s => s.platform === label);
+  const revenue = matching.reduce((a,s) => a + saleRevenue(s), 0);
+  const profit = matching.reduce((a,s) => a + saleProfit(s), 0);
+  const units = matching.reduce((a,s) => a + num(s.qty), 0);
+  return { revenue, profit, units };
+}
+
+function renderChannels(){
+  const ownerBadge = (owner) => owner === 'Dav'
+    ? `<span class="pill" style="background:var(--blue-light);color:var(--blue);">${escapeHtml(owner)}</span>`
+    : `<span class="pill" style="background:rgba(124,58,237,.12);color:var(--accent2);">${escapeHtml(owner)}</span>`;
+
+  const sorted = [...DB.channels].sort((a,b) => (a.status===b.status?0:a.status==='Active'?-1:1) || a.name.localeCompare(b.name));
+
+  document.getElementById('channels-list').innerHTML = sorted.length ? sorted.map(c => {
+    const stats = channelStats(c);
+    return `<div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(c.name)}</strong><div class="cf-card-sub">${ownerBadge(c.owner)}${c.handle ? ' · ' + escapeHtml(c.handle) : ''}</div></div>
+        <span class="pill ${c.status==='Active'?'pill-green':'pill-yellow'}">${escapeHtml(c.status)}</span>
+      </div>
+      <div style="display:flex;gap:18px;margin-top:12px;font-size:12.5px;color:var(--text-secondary);">
+        <div>Revenue<br><strong style="color:var(--text);font-size:14px;">${fmtMoney(stats.revenue)}</strong></div>
+        <div>Profit<br><strong style="color:${stats.profit>=0?'#16a34a':'#dc2626'};font-size:14px;">${fmtMoney(stats.profit)}</strong></div>
+        <div>Units Sold<br><strong style="color:var(--text);font-size:14px;">${stats.units}</strong></div>
+        ${c.feePercent ? `<div>Fee<br><strong style="color:var(--text);font-size:14px;">${c.feePercent}%</strong></div>` : ''}
+      </div>
+      ${c.url ? `<div style="margin-top:10px;"><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener" style="color:var(--primary);font-size:12.5px;font-weight:700;text-decoration:none;">Open Store ↗</a></div>` : ''}
+      ${c.notes ? `<div class="cf-card-sub" style="margin-top:8px;">${escapeHtml(c.notes)}</div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:12px;">
+        <button class="icon-btn" onclick="openChannelModal('${c.id}')">✏️</button>
+        <button class="icon-btn" onclick="deleteChannel('${c.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty-state"><p>No channels yet. Click "+ Add Channel" to add the first place you sell.</p></div>`;
+}
+
+function openChannelModal(id){
+  document.getElementById('channel-edit-id').value = id || '';
+  document.getElementById('channel-modal-title').textContent = id ? 'Edit Channel' : 'Add Channel';
+  if (id) {
+    const c = DB.channels.find(x => x.id === id);
+    document.getElementById('channel-name').value = c.name;
+    document.getElementById('channel-owner').value = c.owner;
+    document.getElementById('channel-status').value = c.status;
+    document.getElementById('channel-handle').value = c.handle || '';
+    document.getElementById('channel-fee').value = c.feePercent || '';
+    document.getElementById('channel-url').value = c.url || '';
+    document.getElementById('channel-notes').value = c.notes || '';
+  } else {
+    document.getElementById('channel-name').value = '';
+    document.getElementById('channel-owner').value = 'Dav';
+    document.getElementById('channel-status').value = 'Active';
+    document.getElementById('channel-handle').value = '';
+    document.getElementById('channel-fee').value = '';
+    document.getElementById('channel-url').value = '';
+    document.getElementById('channel-notes').value = '';
+  }
+  openModalEl('channel-modal');
+}
+
+function saveChannel(){
+  const id = document.getElementById('channel-edit-id').value;
+  const name = document.getElementById('channel-name').value.trim();
+  if (!name) { alert('Please enter a platform name.'); return; }
+  const data = {
+    name,
+    owner: document.getElementById('channel-owner').value,
+    status: document.getElementById('channel-status').value,
+    handle: document.getElementById('channel-handle').value.trim(),
+    feePercent: num(document.getElementById('channel-fee').value) || null,
+    url: document.getElementById('channel-url').value.trim(),
+    notes: document.getElementById('channel-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.channels.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    DB.channels.push(data);
+  }
+  closeModal('channel-modal');
+  save();
+}
+
+function deleteChannel(id){
+  if (!confirm('Delete this channel? Past sales logged under it will keep showing its name, just no longer linked to an active account.')) return;
+  DB.channels = DB.channels.filter(c => c.id !== id);
+  save();
 }
 
 // ---------------------------------------------------------------
