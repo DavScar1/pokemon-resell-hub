@@ -199,6 +199,22 @@ table.tbl tr:hover{background:#f7f8fb;}
 .an-section-title{font-size:14px;font-weight:700;margin-bottom:12px;}
 .insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .insight{background:#f7f8fb;border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:12.5px;}
+
+/* ---------- Analytics HUD panels ---------- */
+.hud-panel{background:linear-gradient(160deg,#0a0e1a,#121a2e);border:1px solid rgba(124,58,237,.35);color:#dbe3f5;}
+.hud-panel::before{content:'';position:absolute;inset:0;background:
+    radial-gradient(ellipse 480px 240px at 10% -10%,rgba(124,58,237,.28),transparent 60%),
+    radial-gradient(ellipse 480px 260px at 105% 110%,rgba(8,145,178,.24),transparent 60%);
+  pointer-events:none;}
+.hud-panel>*{position:relative;}
+.hud-title{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#8fa6d1;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.hud-title::before{content:'';width:6px;height:6px;border-radius:50%;background:#22d3ee;box-shadow:0 0 8px 1px #22d3ee;flex-shrink:0;}
+.hud-panel table.tbl th{color:#7c8bb3;border-bottom-color:rgba(255,255,255,.1);}
+.hud-panel table.tbl td{border-bottom-color:rgba(255,255,255,.07);color:#dbe3f5;}
+.hud-panel table.tbl tr:hover{background:rgba(255,255,255,.04);}
+.hud-panel .empty-state{color:#7c8bb3;}
+.hud-legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:11.5px;color:#9fb0d4;font-family:var(--font-mono);}
+.hud-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle;}
 .progress-bar{height:6px;background:#eef0f4;border-radius:99px;overflow:hidden;margin-top:4px;}
 .progress-bar-fill{height:100%;background:var(--gradient);}
 .cat-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
@@ -474,20 +490,23 @@ table.tbl tr:hover{background:#f7f8fb;}
 
       <div class="kpi-grid" id="kpi-grid" style="margin-bottom:20px;"></div>
 
-      <div class="grid-2" style="align-items:start;margin-bottom:20px;">
-        <div class="card">
-          <div class="an-section-title">📦 Revenue by Product</div>
-          <div id="an-product-table"></div>
-        </div>
-        <div class="card">
-          <div class="an-section-title">🛒 Revenue by Platform</div>
-          <div id="an-platform-table"></div>
-        </div>
+      <div class="card hud-panel" style="margin-bottom:20px;">
+        <div class="hud-title">Revenue &amp; profit trend</div>
+        <div id="an-trend-chart"></div>
+        <div id="an-monthly-table"></div>
       </div>
 
-      <div class="card" style="margin-bottom:20px;">
-        <div class="an-section-title">📅 Monthly Performance</div>
-        <div id="an-monthly-table"></div>
+      <div class="grid-2" style="align-items:start;margin-bottom:20px;">
+        <div class="card hud-panel">
+          <div class="hud-title">Revenue by product</div>
+          <div id="an-product-chart"></div>
+          <div id="an-product-table"></div>
+        </div>
+        <div class="card hud-panel">
+          <div class="hud-title">Revenue by channel</div>
+          <div id="an-platform-chart"></div>
+          <div id="an-platform-table"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -1789,6 +1808,103 @@ const ORDER_STAGE_META = {
 // ---------------------------------------------------------------
 // ANALYTICS
 // ---------------------------------------------------------------
+function buildTrendChartSVG(monthly){
+  const w = 640, h = 190, padL = 6, padR = 6, padT = 10, padB = 24;
+  const chartW = w-padL-padR, chartH = h-padT-padB;
+  const revenues = monthly.map(m => m.revenue);
+  const profits = monthly.map(m => m.profit);
+  const maxVal = Math.max(1, ...revenues, ...profits);
+  const minVal = Math.min(0, ...profits);
+  const range = (maxVal-minVal) || 1;
+  const n = monthly.length;
+  const x = (i) => padL + (n<=1 ? chartW/2 : i*(chartW/(n-1)));
+  const y = (v) => padT + chartH - ((v-minVal)/range)*chartH;
+  const zeroY = y(0);
+
+  const revPts = monthly.map((m,i) => `${x(i)},${y(m.revenue)}`).join(' ');
+  const profPts = monthly.map((m,i) => `${x(i)},${y(m.profit)}`).join(' ');
+  const areaPts = `${x(0)},${zeroY} ${revPts} ${x(n-1)},${zeroY}`;
+
+  const gridLines = [0.25,0.5,0.75].map(f => {
+    const gy = padT + chartH*f;
+    return `<line x1="${padL}" y1="${gy}" x2="${w-padR}" y2="${gy}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`;
+  }).join('');
+  const labels = monthly.map((m,i) => `<text x="${x(i)}" y="${h-6}" text-anchor="middle" font-size="10" fill="#7c8bb3" font-family="'Roboto Mono',monospace">${escapeHtml(m.label)}</text>`).join('');
+  const lastIdx = n-1;
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:170px;display:block;">
+      <defs>
+        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      <polygon points="${areaPts}" fill="url(#trendFill)"/>
+      <polyline points="${revPts}" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 5px rgba(34,211,238,.7));"/>
+      <polyline points="${profPts}" fill="none" stroke="#f472b6" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 5px rgba(244,114,182,.6));"/>
+      ${n ? `<circle cx="${x(lastIdx)}" cy="${y(monthly[lastIdx].revenue)}" r="4" fill="#22d3ee" style="filter:drop-shadow(0 0 5px rgba(34,211,238,.9));"/>
+      <circle cx="${x(lastIdx)}" cy="${y(monthly[lastIdx].profit)}" r="3.5" fill="#f472b6" style="filter:drop-shadow(0 0 5px rgba(244,114,182,.9));"/>` : ''}
+      ${labels}
+    </svg>
+    <div class="hud-legend">
+      <span><span class="hud-legend-dot" style="background:#22d3ee;box-shadow:0 0 6px #22d3ee;"></span>Revenue</span>
+      <span><span class="hud-legend-dot" style="background:#f472b6;box-shadow:0 0 6px #f472b6;"></span>Profit</span>
+    </div>`;
+}
+
+function buildRevenueBarsHTML(rows){
+  if (!rows.length) return '';
+  const top = rows.slice(0,6);
+  const rest = rows.slice(6);
+  const restRevenue = rest.reduce((a,[,d]) => a + d.revenue, 0);
+  const items = rest.length ? [...top, ['Other', {revenue: restRevenue}]] : top;
+  const maxVal = Math.max(1, ...items.map(([,d]) => d.revenue));
+  return `<div style="margin-bottom:8px;">` + items.map(([name,d]) => {
+    const pct = Math.max(2, (d.revenue/maxVal)*100);
+    return `<div style="display:grid;grid-template-columns:110px 1fr 68px;gap:10px;align-items:center;margin-bottom:9px;font-size:11.5px;">
+      <div style="color:#c3cde3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</div>
+      <div style="height:10px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,#22d3ee,#7c3aed);box-shadow:0 0 8px 1px rgba(34,211,238,.5);"></div>
+      </div>
+      <div style="font-family:var(--font-mono);color:#dbe3f5;text-align:right;">${fmtMoney(d.revenue)}</div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function buildChannelDonutSVG(rows){
+  if (!rows.length) return '';
+  const palette = ['#22d3ee','#a78bfa','#f472b6','#fbbf24','#34d399','#60a5fa','#f87171','#facc15'];
+  const top = rows.slice(0,6);
+  const rest = rows.slice(6);
+  const restRevenue = rest.reduce((a,[,d]) => a + d.revenue, 0);
+  const items = rest.length ? [...top, ['Other', {revenue: restRevenue}]] : top;
+  const total = items.reduce((a,[,d]) => a + d.revenue, 0) || 1;
+
+  const r = 70, cx = 100, cy = 100, sw = 26;
+  const circumference = 2*Math.PI*r;
+  let cumulative = 0;
+  const arcs = items.map(([name,d], i) => {
+    const pct = d.revenue/total;
+    const dash = pct*circumference;
+    const gap = circumference-dash;
+    const offset = -cumulative*circumference;
+    cumulative += pct;
+    const color = palette[i % palette.length];
+    return { name, pct, color, svg: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"/>` };
+  });
+  const legend = arcs.map(a => `<span><span class="hud-legend-dot" style="background:${a.color};box-shadow:0 0 6px ${a.color};"></span>${escapeHtml(a.name)} — ${(a.pct*100).toFixed(1)}%</span>`).join('');
+
+  return `
+    <svg viewBox="0 0 200 200" style="width:100%;max-width:220px;height:auto;display:block;margin:0 auto;">
+      ${arcs.map(a=>a.svg).join('')}
+      <text x="100" y="96" text-anchor="middle" font-size="18" font-weight="700" fill="#f2f5fc" font-family="'Roboto Mono',monospace">${fmtMoney(total)}</text>
+      <text x="100" y="114" text-anchor="middle" font-size="10" fill="#7c8bb3" font-family="'Nunito Sans',sans-serif" letter-spacing="1">TOTAL REVENUE</text>
+    </svg>
+    <div class="hud-legend" style="justify-content:center;">${legend}</div>`;
+}
+
 function renderAnalytics(){
   const picker = document.getElementById('month-picker');
   if (!picker.value) picker.value = todayISO().slice(0,7);
@@ -1823,6 +1939,7 @@ function renderAnalytics(){
     byProduct[k].profit += saleProfit(s);
   });
   const productRows = Object.entries(byProduct).sort((a,b) => b[1].revenue - a[1].revenue);
+  document.getElementById('an-product-chart').innerHTML = buildRevenueBarsHTML(productRows);
   document.getElementById('an-product-table').innerHTML = productRows.length ? `
     <table class="tbl"><thead><tr><th>Product</th><th>Units</th><th>Revenue</th><th>Profit</th></tr></thead><tbody>
       ${productRows.map(([name,d]) => `<tr><td>${escapeHtml(name)}</td><td>${d.units}</td><td>${fmtMoney(d.revenue)}</td><td style="color:${d.profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(d.profit)}</td></tr>`).join('')}
@@ -1838,6 +1955,7 @@ function renderAnalytics(){
     byPlatform[k].fees += num(s.fee);
   });
   const platformRows = Object.entries(byPlatform).sort((a,b) => b[1].revenue - a[1].revenue);
+  document.getElementById('an-platform-chart').innerHTML = buildChannelDonutSVG(platformRows);
   document.getElementById('an-platform-table').innerHTML = platformRows.length ? `
     <table class="tbl"><thead><tr><th>Platform</th><th>Units</th><th>Revenue</th><th>Fees Paid</th></tr></thead><tbody>
       ${platformRows.map(([name,d]) => `<tr><td>${escapeHtml(name)}</td><td>${d.units}</td><td>${fmtMoney(d.revenue)}</td><td>${fmtMoney(d.fees)}</td></tr>`).join('')}
@@ -1850,17 +1968,20 @@ function renderAnalytics(){
     const d = new Date(base.getFullYear(), base.getMonth()-i, 1);
     months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
   }
+  const monthlyData = months.map(mk => {
+    const s = DB.sales.filter(x => x.date.slice(0,7) === mk);
+    const revenue = s.reduce((a,x) => a+saleRevenue(x), 0);
+    const cost = s.reduce((a,x) => a+saleCostTotal(x), 0);
+    const profit = revenue-cost;
+    const margin = revenue ? (profit/revenue*100) : 0;
+    const label = new Date(mk+'-01T00:00:00').toLocaleString('default',{month:'short',year:'numeric'});
+    return { label, revenue, cost, profit, margin };
+  });
+
+  document.getElementById('an-trend-chart').innerHTML = buildTrendChartSVG(monthlyData);
   document.getElementById('an-monthly-table').innerHTML = `
     <table class="tbl"><thead><tr><th>Month</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Margin</th></tr></thead><tbody>
-      ${months.map(mk => {
-        const s = DB.sales.filter(x => x.date.slice(0,7) === mk);
-        const rev = s.reduce((a,x) => a+saleRevenue(x), 0);
-        const cost = s.reduce((a,x) => a+saleCostTotal(x), 0);
-        const prof = rev-cost;
-        const marg = rev ? (prof/rev*100) : 0;
-        const label = new Date(mk+'-01T00:00:00').toLocaleString('default',{month:'short',year:'numeric'});
-        return `<tr><td>${label}</td><td>${fmtMoney(rev)}</td><td>${fmtMoney(cost)}</td><td style="color:${prof>=0?'#16a34a':'#dc2626'};">${fmtMoney(prof)}</td><td>${marg.toFixed(1)}%</td></tr>`;
-      }).join('')}
+      ${monthlyData.map(m => `<tr><td>${m.label}</td><td>${fmtMoney(m.revenue)}</td><td>${fmtMoney(m.cost)}</td><td style="color:${m.profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(m.profit)}</td><td>${m.margin.toFixed(1)}%</td></tr>`).join('')}
     </tbody></table>`;
 
   // Inventory intelligence
