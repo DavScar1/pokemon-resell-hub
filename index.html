@@ -1022,6 +1022,12 @@ function saveSale(){
       data.cashStatus = 'pending';
       data.cashInDate = '';
     }
+    if (!data.orderId) {
+      // Logged straight from Sales Log rather than via an order's own "Log Sale" button — still
+      // link it to the right order/item so Cash Flow's remaining-to-sell count stays accurate.
+      const match = findAvailableOrderItem(item, qty);
+      if (match) { data.orderId = match.o.id; data.orderItemId = match.it.id; }
+    }
     DB.sales.push(data);
     if (invItem) invItem.qty = Math.max(0, invItem.qty - qty);
     if (dealId) DB.deals = DB.deals.filter(d => d.id !== dealId);
@@ -1784,6 +1790,24 @@ function orderLinkedSales(o){
 
 function orderFullySold(o){
   return orderItems(o).every(it => orderItemSoldQty(o,it) >= it.qty);
+}
+
+// Finds the oldest-arrived order line item (by name) with enough unsold stock to cover a sale
+// that wasn't explicitly logged against a specific order — so a plain Sales Log entry still
+// counts against the right order's "left to sell" total, same as using its own Log Sale button.
+function findAvailableOrderItem(itemName, qty){
+  const name = itemName.trim().toLowerCase();
+  const candidates = [];
+  DB.orders.filter(o => o.status === 'Arrived').forEach(o => {
+    orderItems(o).forEach(it => {
+      if (it.item.trim().toLowerCase() === name) {
+        const remaining = it.qty - orderItemSoldQty(o, it);
+        if (remaining > 0) candidates.push({ o, it, remaining, date: o.arrival || o.date });
+      }
+    });
+  });
+  candidates.sort((a,b) => a.date.localeCompare(b.date));
+  return candidates.find(c => c.remaining >= qty) || null;
 }
 
 function orderStage(o){
