@@ -314,6 +314,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="cashflow" onclick="showPage('cashflow')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cash Flow</button>
     <button class="nav-item" data-page="calendar" onclick="showPage('calendar')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Supplier Calendar</button>
     <button class="nav-item" data-page="analytics" onclick="showPage('analytics')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Analytics</button>
+    <button class="nav-item" data-page="notes" onclick="showPage('notes')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notes</button>
     <div class="sidebar-footer">
       <div class="user-email" id="current-user-email"></div>
       <button onclick="window.authLogout && window.authLogout()">Log out</button>
@@ -514,6 +515,28 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div id="an-inventory-intel"></div>
       </div>
     </div>
+
+    <!-- ---------------- Notes ---------------- -->
+    <div class="page" id="page-notes">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notes</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Box costs, sets you're eyeing, and anything else worth writing down.</p>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin:0 0 12px;">
+        <div class="cf-section-title" style="margin:0;">📦 Price Reference</div>
+        <button class="btn btn-primary btn-sm" onclick="openPriceRefModal()">+ Add Price</button>
+      </div>
+      <div class="card" style="margin-bottom:24px;"><div id="priceref-table"></div></div>
+
+      <div class="section-header" style="margin:0 0 12px;">
+        <div class="cf-section-title" style="margin:0;">📝 Notes</div>
+        <button class="btn btn-primary btn-sm" onclick="openNoteModal()">+ Add Note</button>
+      </div>
+      <div class="cf-cards-grid" id="notes-list"></div>
+    </div>
   </div>
 </div>
 
@@ -701,6 +724,40 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Price Reference modal -->
+<div class="modal-overlay" id="priceref-modal">
+  <div class="modal">
+    <h3 id="priceref-modal-title">Add Price Reference</h3>
+    <input type="hidden" id="priceref-edit-id">
+    <div class="form-group"><label>Set / Product Name</label><input type="text" id="priceref-name" placeholder="e.g. Scarlet & Violet Booster Box"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Cost per Box (€)</label><input type="number" id="priceref-cost" min="0" step="0.01" placeholder="e.g. 95.00"></div>
+      <div class="form-group"><label>Sells</label>
+        <select id="priceref-speed"><option>Fast</option><option>Medium</option><option>Slow</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="priceref-notes" rows="2" placeholder="Supplier, market trend, anything worth remembering"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('priceref-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePriceRef()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Note modal -->
+<div class="modal-overlay" id="note-modal">
+  <div class="modal">
+    <h3 id="note-modal-title">Add Note</h3>
+    <input type="hidden" id="note-edit-id">
+    <div class="form-group"><label>Title</label><input type="text" id="note-title" placeholder="e.g. Supplier lead times"></div>
+    <div class="form-group"><label>Note</label><textarea id="note-body" rows="6" placeholder="Anything worth writing down"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('note-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -718,7 +775,7 @@ let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
-  return { sales: [], inventory: [], orders: [], deals: [], channels: [], balanceBaseline: null, balanceBaselineDate: null };
+  return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [], balanceBaseline: null, balanceBaselineDate: null };
 }
 
 function loadLocal(){
@@ -817,6 +874,7 @@ function renderCurrentPage(){
   else if (currentPage === 'cashflow') renderCashFlow();
   else if (currentPage === 'calendar') renderCalendar();
   else if (currentPage === 'analytics') renderAnalytics();
+  else if (currentPage === 'notes') renderNotesPage();
 }
 
 function populateInventoryDatalist(){
@@ -1342,6 +1400,128 @@ function saveChannel(){
 function deleteChannel(id){
   if (!confirm('Delete this channel? Past sales logged under it will keep showing its name, just no longer linked to an active account.')) return;
   DB.channels = DB.channels.filter(c => c.id !== id);
+  save();
+}
+
+// ---------------------------------------------------------------
+// NOTES  (price reference + freeform notes)
+// ---------------------------------------------------------------
+const SPEED_META = {
+  Fast:   {bg:'var(--green-light)',  color:'var(--green)'},
+  Medium: {bg:'var(--yellow-light)', color:'var(--yellow)'},
+  Slow:   {bg:'var(--red-light)',    color:'var(--red)'},
+};
+
+function renderNotesPage(){
+  const rows = [...DB.priceRefs].sort((a,b) => a.name.localeCompare(b.name));
+  document.getElementById('priceref-table').innerHTML = rows.length ? `
+    <table class="tbl"><thead><tr><th>Set / Product</th><th>Cost</th><th>Sells</th><th>Notes</th><th></th></tr></thead><tbody>
+      ${rows.map(r => { const meta = SPEED_META[r.sellSpeed] || SPEED_META.Medium; return `<tr>
+        <td><strong>${escapeHtml(r.name)}</strong></td>
+        <td>${fmtMoney(r.cost)}</td>
+        <td><span class="pill" style="background:${meta.bg};color:${meta.color};">${escapeHtml(r.sellSpeed)}</span></td>
+        <td style="color:var(--text-secondary);">${escapeHtml(r.notes||'')}</td>
+        <td><div class="row-actions">
+          <button class="icon-btn" onclick="openPriceRefModal('${r.id}')">✏️</button>
+          <button class="icon-btn" onclick="deletePriceRef('${r.id}')">🗑️</button>
+        </div></td>
+      </tr>`; }).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No price references yet. Click "+ Add Price" to log what a set costs you.</p></div>`;
+
+  const notes = [...DB.notes].sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  document.getElementById('notes-list').innerHTML = notes.length ? notes.map(n => `
+    <div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(n.title)}</strong></div>
+      </div>
+      <div style="margin-top:8px;font-size:13px;color:var(--text-secondary);white-space:pre-wrap;">${escapeHtml(n.body)}</div>
+      <div style="display:flex;gap:6px;margin-top:12px;">
+        <button class="icon-btn" onclick="openNoteModal('${n.id}')">✏️</button>
+        <button class="icon-btn" onclick="deleteNote('${n.id}')">🗑️</button>
+      </div>
+    </div>`).join('') : `<div class="empty-state"><p>No notes yet. Click "+ Add Note" to write something down.</p></div>`;
+}
+
+function openPriceRefModal(id){
+  document.getElementById('priceref-edit-id').value = id || '';
+  document.getElementById('priceref-modal-title').textContent = id ? 'Edit Price Reference' : 'Add Price Reference';
+  if (id) {
+    const r = DB.priceRefs.find(x => x.id === id);
+    document.getElementById('priceref-name').value = r.name;
+    document.getElementById('priceref-cost').value = r.cost;
+    document.getElementById('priceref-speed').value = r.sellSpeed;
+    document.getElementById('priceref-notes').value = r.notes || '';
+  } else {
+    document.getElementById('priceref-name').value = '';
+    document.getElementById('priceref-cost').value = '';
+    document.getElementById('priceref-speed').value = 'Medium';
+    document.getElementById('priceref-notes').value = '';
+  }
+  openModalEl('priceref-modal');
+}
+
+function savePriceRef(){
+  const id = document.getElementById('priceref-edit-id').value;
+  const name = document.getElementById('priceref-name').value.trim();
+  if (!name) { alert('Please enter a set or product name.'); return; }
+  const data = {
+    name,
+    cost: num(document.getElementById('priceref-cost').value),
+    sellSpeed: document.getElementById('priceref-speed').value,
+    notes: document.getElementById('priceref-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.priceRefs.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    DB.priceRefs.push(data);
+  }
+  closeModal('priceref-modal');
+  save();
+}
+
+function deletePriceRef(id){
+  if (!confirm('Delete this price reference?')) return;
+  DB.priceRefs = DB.priceRefs.filter(r => r.id !== id);
+  save();
+}
+
+function openNoteModal(id){
+  document.getElementById('note-edit-id').value = id || '';
+  document.getElementById('note-modal-title').textContent = id ? 'Edit Note' : 'Add Note';
+  if (id) {
+    const n = DB.notes.find(x => x.id === id);
+    document.getElementById('note-title').value = n.title;
+    document.getElementById('note-body').value = n.body || '';
+  } else {
+    document.getElementById('note-title').value = '';
+    document.getElementById('note-body').value = '';
+  }
+  openModalEl('note-modal');
+}
+
+function saveNote(){
+  const id = document.getElementById('note-edit-id').value;
+  const title = document.getElementById('note-title').value.trim();
+  if (!title) { alert('Please enter a title.'); return; }
+  const data = {
+    title,
+    body: document.getElementById('note-body').value.trim(),
+    updatedAt: todayISO(),
+  };
+  if (id) {
+    Object.assign(DB.notes.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    DB.notes.push(data);
+  }
+  closeModal('note-modal');
+  save();
+}
+
+function deleteNote(id){
+  if (!confirm('Delete this note?')) return;
+  DB.notes = DB.notes.filter(n => n.id !== id);
   save();
 }
 
