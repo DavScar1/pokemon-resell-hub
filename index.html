@@ -315,6 +315,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="calendar" onclick="showPage('calendar')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Supplier Calendar</button>
     <button class="nav-item" data-page="analytics" onclick="showPage('analytics')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Analytics</button>
     <button class="nav-item" data-page="notes" onclick="showPage('notes')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notes</button>
+    <button class="nav-item" data-page="pocket" onclick="showPage('pocket')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M19 7H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><circle cx="16" cy="12" r="1.5"/></svg>Revolut Pocket</button>
     <div class="sidebar-footer">
       <div class="user-email" id="current-user-email"></div>
       <button onclick="window.authLogout && window.authLogout()">Log out</button>
@@ -537,6 +538,28 @@ table.tbl tr:hover{background:#f7f8fb;}
       </div>
       <div class="cf-cards-grid" id="notes-list"></div>
     </div>
+
+    <!-- ---------------- Revolut Pocket ---------------- -->
+    <div class="page" id="page-pocket">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M19 7H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><circle cx="16" cy="12" r="1.5"/></svg>Revolut Pocket</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Who actually owns what's sitting in the shared account right now.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openPocketModal()">+ Add Transaction</button>
+      </div>
+
+      <div class="card" id="pocket-opening-banner" style="margin-bottom:18px;"></div>
+
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-value" id="pocket-dav-balance">€0</div><div class="stat-label" id="pocket-dav-label">Dav's Balance</div></div>
+        <div class="stat-card"><div class="stat-value" id="pocket-dan-balance">€0</div><div class="stat-label" id="pocket-dan-label">Dan's Balance</div></div>
+        <div class="stat-card"><div class="stat-value" id="pocket-total-balance">€0</div><div class="stat-label">Total Balance</div></div>
+      </div>
+
+      <div class="cf-section-title">📜 Transaction Ledger</div>
+      <div class="card"><div id="pocket-ledger"></div></div>
+    </div>
   </div>
 </div>
 
@@ -758,6 +781,55 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Pocket transaction modal -->
+<div class="modal-overlay" id="pocket-modal">
+  <div class="modal">
+    <h3 id="pocket-modal-title">Add Transaction</h3>
+    <input type="hidden" id="pocket-edit-id">
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input type="date" id="pocket-date"></div>
+      <div class="form-group"><label>Type</label>
+        <select id="pocket-type" onchange="updatePocketFormFields()">
+          <option value="topup">Top-Up (personal money in)</option>
+          <option value="payout">Payout In (from a channel)</option>
+          <option value="withdrawal">Withdrawal (money out)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" id="pocket-owner-group"><label id="pocket-owner-label">Partner</label>
+        <select id="pocket-owner"><option>Dav</option><option>Dan</option></select>
+      </div>
+      <div class="form-group" id="pocket-channel-group" style="display:none;"><label>Channel</label>
+        <select id="pocket-channel"></select>
+      </div>
+      <div class="form-group"><label>Amount (€)</label><input type="number" id="pocket-amount" min="0" step="0.01"></div>
+    </div>
+    <div class="form-group"><label>Description <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="text" id="pocket-notes" placeholder="e.g. Restock top-up, June Cardmarket payout"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('pocket-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePocketEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pocket opening balance modal -->
+<div class="modal-overlay" id="pocket-opening-modal">
+  <div class="modal">
+    <h3>Set Opening Balance</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin:-8px 0 16px;">Enter what's actually in the Revolut pocket right now for each of you. Every transaction from this date on tracks live from here — no need to re-enter old history.</p>
+    <div class="form-row">
+      <div class="form-group"><label>Dav's Balance (€)</label><input type="number" id="pocket-opening-dav" step="0.01"></div>
+      <div class="form-group"><label>Dan's Balance (€)</label><input type="number" id="pocket-opening-dan" step="0.01"></div>
+    </div>
+    <div class="form-group"><label>As Of Date</label><input type="date" id="pocket-opening-date"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('pocket-opening-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePocketOpening()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -775,7 +847,9 @@ let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
-  return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [], balanceBaseline: null, balanceBaselineDate: null };
+  return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
+    pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
+    balanceBaseline: null, balanceBaselineDate: null };
 }
 
 function loadLocal(){
@@ -875,6 +949,7 @@ function renderCurrentPage(){
   else if (currentPage === 'calendar') renderCalendar();
   else if (currentPage === 'analytics') renderAnalytics();
   else if (currentPage === 'notes') renderNotesPage();
+  else if (currentPage === 'pocket') renderPocketPage();
 }
 
 function populateInventoryDatalist(){
@@ -1523,6 +1598,171 @@ function deleteNote(id){
   if (!confirm('Delete this note?')) return;
   DB.notes = DB.notes.filter(n => n.id !== id);
   save();
+}
+
+// ---------------------------------------------------------------
+// REVOLUT POCKET  (shared account balance, split between partners)
+// ---------------------------------------------------------------
+function populatePocketChannelSelect(){
+  const sel = document.getElementById('pocket-channel');
+  const options = DB.channels.filter(c => c.status !== 'Paused').map(channelLabel);
+  if (!options.length) options.push('Other');
+  sel.innerHTML = options.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+}
+
+function updatePocketFormFields(){
+  const type = document.getElementById('pocket-type').value;
+  document.getElementById('pocket-owner-group').style.display = type === 'payout' ? 'none' : '';
+  document.getElementById('pocket-channel-group').style.display = type === 'payout' ? '' : 'none';
+  document.getElementById('pocket-owner-label').textContent = type === 'withdrawal' ? 'Taken By' : 'Partner';
+  if (type === 'payout') populatePocketChannelSelect();
+}
+
+function openPocketModal(id){
+  document.getElementById('pocket-edit-id').value = id || '';
+  document.getElementById('pocket-modal-title').textContent = id ? 'Edit Transaction' : 'Add Transaction';
+  if (id) {
+    const e = DB.pocketEntries.find(x => x.id === id);
+    document.getElementById('pocket-date').value = e.date;
+    document.getElementById('pocket-type').value = e.type;
+    document.getElementById('pocket-amount').value = e.amount;
+    document.getElementById('pocket-notes').value = e.notes || '';
+    updatePocketFormFields();
+    if (e.type === 'payout') {
+      const chanSel = document.getElementById('pocket-channel');
+      if (e.channel && ![...chanSel.options].some(o => o.value === e.channel)) {
+        chanSel.insertAdjacentHTML('afterbegin', `<option value="${escapeHtml(e.channel)}">${escapeHtml(e.channel)}</option>`);
+      }
+      chanSel.value = e.channel || '';
+    } else {
+      document.getElementById('pocket-owner').value = e.owner || 'Dav';
+    }
+  } else {
+    document.getElementById('pocket-date').value = todayISO();
+    document.getElementById('pocket-type').value = 'topup';
+    document.getElementById('pocket-owner').value = 'Dav';
+    document.getElementById('pocket-amount').value = '';
+    document.getElementById('pocket-notes').value = '';
+    updatePocketFormFields();
+  }
+  openModalEl('pocket-modal');
+}
+
+function savePocketEntry(){
+  const id = document.getElementById('pocket-edit-id').value;
+  const type = document.getElementById('pocket-type').value;
+  const amount = num(document.getElementById('pocket-amount').value);
+  if (amount <= 0) { alert('Amount must be greater than 0.'); return; }
+  const data = {
+    date: document.getElementById('pocket-date').value || todayISO(),
+    type, amount,
+    notes: document.getElementById('pocket-notes').value.trim(),
+  };
+  if (type === 'payout') {
+    data.channel = document.getElementById('pocket-channel').value;
+    data.owner = '';
+  } else {
+    data.owner = document.getElementById('pocket-owner').value;
+    data.channel = '';
+  }
+  if (id) {
+    Object.assign(DB.pocketEntries.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    data.loggedBy = currentUserEmail();
+    DB.pocketEntries.push(data);
+  }
+  closeModal('pocket-modal');
+  save();
+}
+
+function deletePocketEntry(id){
+  if (!confirm('Delete this transaction?')) return;
+  DB.pocketEntries = DB.pocketEntries.filter(e => e.id !== id);
+  save();
+}
+
+function openPocketOpeningModal(){
+  const p = DB.pocket || {};
+  document.getElementById('pocket-opening-dav').value = p.openingDav || 0;
+  document.getElementById('pocket-opening-dan').value = p.openingDan || 0;
+  document.getElementById('pocket-opening-date').value = p.openingDate || todayISO();
+  openModalEl('pocket-opening-modal');
+}
+
+function savePocketOpening(){
+  DB.pocket = {
+    openingDav: num(document.getElementById('pocket-opening-dav').value),
+    openingDan: num(document.getElementById('pocket-opening-dan').value),
+    openingDate: document.getElementById('pocket-opening-date').value || todayISO(),
+  };
+  closeModal('pocket-opening-modal');
+  save();
+}
+
+// Applies opening balances then every transaction in date order, splitting payouts 50/50
+// and crediting/debiting top-ups and withdrawals to whichever partner they belong to.
+function pocketRunningBalances(){
+  const opening = DB.pocket || { openingDav:0, openingDan:0, openingDate:null };
+  let dav = num(opening.openingDav), dan = num(opening.openingDan);
+  const entries = [...DB.pocketEntries].sort((a,b) => a.date.localeCompare(b.date));
+  const rows = entries.map(e => {
+    let davDelta = 0, danDelta = 0;
+    if (e.type === 'topup') { if (e.owner === 'Dav') davDelta = e.amount; else danDelta = e.amount; }
+    else if (e.type === 'payout') { davDelta = e.amount/2; danDelta = e.amount/2; }
+    else if (e.type === 'withdrawal') { if (e.owner === 'Dav') davDelta = -e.amount; else danDelta = -e.amount; }
+    dav += davDelta; dan += danDelta;
+    return { entry: e, davDelta, danDelta, davBalance: dav, danBalance: dan };
+  });
+  return { rows, dav, dan, opening };
+}
+
+function pocketEntryLabel(e){
+  if (e.type === 'topup') return `Top-Up — ${e.owner}`;
+  if (e.type === 'payout') return `Payout — ${e.channel}`;
+  return `Withdrawal — ${e.owner}`;
+}
+
+function renderPocketPage(){
+  const { rows, dav, dan, opening } = pocketRunningBalances();
+
+  document.getElementById('pocket-dav-balance').textContent = fmtMoney(dav);
+  document.getElementById('pocket-dan-balance').textContent = fmtMoney(dan);
+  document.getElementById('pocket-total-balance').textContent = fmtMoney(dav+dan);
+
+  document.getElementById('pocket-opening-banner').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div><strong>Opening balance: Dav ${fmtMoney(opening.openingDav||0)} · Dan ${fmtMoney(opening.openingDan||0)}</strong>
+        ${opening.openingDate ? `<div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">As of ${fmtDate(opening.openingDate)}</div>` : `<div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">Not set yet — defaults to €0 each.</div>`}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openPocketOpeningModal()">${opening.openingDate ? 'Edit' : 'Set Opening Balance'}</button>
+    </div>`;
+
+  const chron = [...rows].reverse();
+  document.getElementById('pocket-ledger').innerHTML = (chron.length || opening.openingDate) ? `
+    <table class="tbl"><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Dav Balance</th><th>Dan Balance</th><th>Total</th><th></th></tr></thead><tbody>
+      ${chron.map(r => `<tr>
+        <td>${fmtDate(r.entry.date)}</td>
+        <td><strong>${escapeHtml(pocketEntryLabel(r.entry))}</strong>${r.entry.notes ? `<br><span style="color:var(--text-muted);font-size:11px;">${escapeHtml(r.entry.notes)}</span>` : ''}</td>
+        <td style="color:${r.entry.type==='withdrawal'?'#dc2626':'#16a34a'};font-weight:700;">${r.entry.type==='withdrawal'?'-':'+'}${fmtMoney(r.entry.amount)}</td>
+        <td>${fmtMoney(r.davBalance)}</td>
+        <td>${fmtMoney(r.danBalance)}</td>
+        <td>${fmtMoney(r.davBalance + r.danBalance)}</td>
+        <td><div class="row-actions">
+          <button class="icon-btn" onclick="openPocketModal('${r.entry.id}')">✏️</button>
+          <button class="icon-btn" onclick="deletePocketEntry('${r.entry.id}')">🗑️</button>
+        </div></td>
+      </tr>`).join('')}
+      ${opening.openingDate ? `<tr>
+        <td>${fmtDate(opening.openingDate)}</td>
+        <td><strong>Opening Balance</strong></td>
+        <td></td>
+        <td>${fmtMoney(opening.openingDav||0)}</td>
+        <td>${fmtMoney(opening.openingDan||0)}</td>
+        <td>${fmtMoney((opening.openingDav||0)+(opening.openingDan||0))}</td>
+        <td></td>
+      </tr>` : ''}
+    </tbody></table>` : `<div class="empty-state"><p>No transactions yet. Set an opening balance, then log top-ups, payouts, and withdrawals as they happen.</p></div>`;
 }
 
 // ---------------------------------------------------------------
