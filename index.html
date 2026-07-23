@@ -316,7 +316,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="analytics" onclick="showPage('analytics')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Analytics</button>
     <button class="nav-item" data-page="notes" onclick="showPage('notes')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notes</button>
     <button class="nav-item" data-page="pocket" onclick="showPage('pocket')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M19 7H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><circle cx="16" cy="12" r="1.5"/></svg>Revolut Pocket</button>
-    <button class="nav-item" data-page="payouts" onclick="showPage('payouts')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg>Tax &amp; Payouts</button>
+    <button class="nav-item" data-page="payouts" onclick="showPage('payouts')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg>Tax</button>
     <div class="sidebar-footer">
       <div class="user-email" id="current-user-email"></div>
       <button onclick="window.authLogout && window.authLogout()">Log out</button>
@@ -585,12 +585,12 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="card"><div id="pocket-ledger"></div></div>
     </div>
 
-    <!-- ---------------- Tax & Payouts ---------------- -->
+    <!-- ---------------- Tax ---------------- -->
     <div class="page" id="page-payouts">
       <div class="section-header" style="margin-bottom:18px;">
         <div>
-          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg>Tax &amp; Payouts</h2>
-          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Profit split between partners, tax set-aside, and what's actually been paid out.</p>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg>Tax</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">What you'd owe in tax on profit, even though it all stays in the pot and gets reinvested.</p>
         </div>
       </div>
 
@@ -598,16 +598,7 @@ table.tbl tr:hover{background:#f7f8fb;}
 
       <div class="cf-section-title">🧾 Tax Breakdown</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;" id="tax-kpi-grid"></div>
-      <div class="card" style="margin-bottom:24px;"><div id="tax-monthly-table"></div></div>
-
-      <div class="cf-section-title">📊 Profit &amp; Payout Summary</div>
-      <div class="card" style="margin-bottom:24px;"><div id="payout-summary-table"></div></div>
-
-      <div class="section-header" style="margin:0 0 12px;">
-        <div class="cf-section-title" style="margin:0;">📋 Payout Log</div>
-        <button class="btn btn-primary btn-sm" onclick="openPayoutModal()">+ Log Payout</button>
-      </div>
-      <div class="card"><div id="payout-log-table"></div></div>
+      <div class="card"><div id="tax-monthly-table"></div></div>
     </div>
   </div>
 </div>
@@ -892,27 +883,6 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
-<!-- Payout modal -->
-<div class="modal-overlay" id="payout-modal">
-  <div class="modal">
-    <h3 id="payout-modal-title">Log Payout</h3>
-    <input type="hidden" id="payout-edit-id">
-    <div class="form-row">
-      <div class="form-group"><label>Date</label><input type="date" id="payout-date"></div>
-      <div class="form-group"><label>Period (Month)</label><input type="month" id="payout-period"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Partner</label><select id="payout-partner"><option>Dav</option><option>Dan</option></select></div>
-      <div class="form-group"><label>Amount Paid (€)</label><input type="number" id="payout-amount" min="0" step="0.01"></div>
-    </div>
-    <div class="form-group"><label>Notes</label><textarea id="payout-notes" rows="2" placeholder="e.g. Half of June profit, sent via Revolut"></textarea></div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal('payout-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="savePayout()">Save</button>
-    </div>
-  </div>
-</div>
-
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -932,7 +902,7 @@ let cfShowCompleted = false;
 function defaultDB(){
   return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
     pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
-    taxRate: 0.20, payouts: [],
+    taxRate: 0.20,
     balanceBaseline: null, balanceBaselineDate: null };
 }
 
@@ -1869,9 +1839,6 @@ function periodTaxProvision(period){
   const p = periodNetProfit(period);
   return p > 0 ? p * taxRate() : 0;
 }
-function periodAfterTaxProfit(period){ return periodNetProfit(period) - periodTaxProvision(period); }
-// 50/50 split, matching the couple's actual profit-share agreement.
-function periodPartnerOwed(period){ return periodAfterTaxProfit(period) / 2; }
 
 function openTaxRateModal(){
   document.getElementById('tax-rate-input').value = (taxRate()*100).toFixed(1);
@@ -1881,53 +1848,6 @@ function openTaxRateModal(){
 function saveTaxRate(){
   DB.taxRate = num(document.getElementById('tax-rate-input').value) / 100;
   closeModal('tax-rate-modal');
-  save();
-}
-
-function openPayoutModal(id){
-  document.getElementById('payout-edit-id').value = id || '';
-  document.getElementById('payout-modal-title').textContent = id ? 'Edit Payout' : 'Log Payout';
-  if (id) {
-    const p = DB.payouts.find(x => x.id === id);
-    document.getElementById('payout-date').value = p.date;
-    document.getElementById('payout-period').value = p.period;
-    document.getElementById('payout-partner').value = p.partner;
-    document.getElementById('payout-amount').value = p.amount;
-    document.getElementById('payout-notes').value = p.notes || '';
-  } else {
-    document.getElementById('payout-date').value = todayISO();
-    document.getElementById('payout-period').value = todayISO().slice(0,7);
-    document.getElementById('payout-partner').value = 'Dav';
-    document.getElementById('payout-amount').value = '';
-    document.getElementById('payout-notes').value = '';
-  }
-  openModalEl('payout-modal');
-}
-
-function savePayout(){
-  const id = document.getElementById('payout-edit-id').value;
-  const amount = num(document.getElementById('payout-amount').value);
-  if (amount <= 0) { alert('Amount must be greater than 0.'); return; }
-  const data = {
-    date: document.getElementById('payout-date').value || todayISO(),
-    period: document.getElementById('payout-period').value || todayISO().slice(0,7),
-    partner: document.getElementById('payout-partner').value,
-    amount,
-    notes: document.getElementById('payout-notes').value.trim(),
-  };
-  if (id) {
-    Object.assign(DB.payouts.find(x => x.id === id), data);
-  } else {
-    data.id = uid();
-    DB.payouts.push(data);
-  }
-  closeModal('payout-modal');
-  save();
-}
-
-function deletePayout(id){
-  if (!confirm('Delete this payout?')) return;
-  DB.payouts = DB.payouts.filter(p => p.id !== id);
   save();
 }
 
@@ -1963,49 +1883,6 @@ function renderPayoutsPage(){
         <td>${fmtMoney(r.tax)}</td>
       </tr>`; }).join('')}
     </tbody></table>` : `<div class="empty-state"><p>No sales yet.</p></div>`;
-
-  const partners = ['Dav','Dan'];
-  const summaryRows = [];
-  periods.forEach(period => {
-    const owed = periodPartnerOwed(period);
-    partners.forEach(partner => {
-      const paid = DB.payouts.filter(p => p.period === period && p.partner === partner).reduce((a,p) => a+p.amount, 0);
-      summaryRows.push({ period, partner, owed, paid, remaining: owed - paid });
-    });
-  });
-  summaryRows.sort((a,b) => b.period.localeCompare(a.period) || a.partner.localeCompare(b.partner));
-
-  document.getElementById('payout-summary-table').innerHTML = summaryRows.length ? `
-    <table class="tbl"><thead><tr><th>Period</th><th>Partner</th><th>Profit Owed (After Tax)</th><th>Paid So Far</th><th>Remaining</th><th>Status</th></tr></thead><tbody>
-      ${summaryRows.map(r => {
-        const label = new Date(r.period+'-01T00:00:00').toLocaleString('default',{month:'short',year:'numeric'});
-        const status = Math.abs(r.remaining) < 0.01 ? {text:'Settled', cls:'pill-green'} : r.paid > 0 ? {text:'Partial', cls:'pill-yellow'} : {text:'Unpaid', cls:'pill-red'};
-        return `<tr>
-          <td>${label}</td>
-          <td>${r.partner}</td>
-          <td>${fmtMoney(r.owed)}</td>
-          <td>${fmtMoney(r.paid)}</td>
-          <td style="color:${r.remaining>0?'#dc2626':'#16a34a'};">${fmtMoney(r.remaining)}</td>
-          <td><span class="pill ${status.cls}">${status.text}</span></td>
-        </tr>`;
-      }).join('')}
-    </tbody></table>` : `<div class="empty-state"><p>No sales logged yet, so nothing to split.</p></div>`;
-
-  const log = [...DB.payouts].sort((a,b) => b.date.localeCompare(a.date));
-  document.getElementById('payout-log-table').innerHTML = log.length ? `
-    <table class="tbl"><thead><tr><th>Date</th><th>Period</th><th>Partner</th><th>Amount Paid</th><th>Notes</th><th></th></tr></thead><tbody>
-      ${log.map(p => { const label = new Date(p.period+'-01T00:00:00').toLocaleString('default',{month:'short',year:'numeric'}); return `<tr>
-        <td>${fmtDate(p.date)}</td>
-        <td>${label}</td>
-        <td>${p.partner}</td>
-        <td>${fmtMoney(p.amount)}</td>
-        <td style="color:var(--text-secondary);">${escapeHtml(p.notes||'')}</td>
-        <td><div class="row-actions">
-          <button class="icon-btn" onclick="openPayoutModal('${p.id}')">✏️</button>
-          <button class="icon-btn" onclick="deletePayout('${p.id}')">🗑️</button>
-        </div></td>
-      </tr>`; }).join('')}
-    </tbody></table>` : `<div class="empty-state"><p>No payouts logged yet. Click "+ Log Payout" when you actually pay yourselves out.</p></div>`;
 }
 
 // ---------------------------------------------------------------
