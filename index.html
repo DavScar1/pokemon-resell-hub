@@ -491,12 +491,35 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div id="month-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
       </div>
 
-      <div class="kpi-grid" id="kpi-grid" style="margin-bottom:20px;"></div>
+      <div class="kpi-grid" id="kpi-grid" style="margin-bottom:20px;grid-template-columns:repeat(4,1fr);"></div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div class="an-section-title" style="margin:0;">📆 Custom Date Range</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="date" id="an-range-start" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;background:var(--bg);" onchange="renderAnalytics()">
+            <span style="color:var(--text-muted);font-size:12px;">to</span>
+            <input type="date" id="an-range-end" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;background:var(--bg);" onchange="renderAnalytics()">
+          </div>
+        </div>
+        <div id="an-range-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;"></div>
+      </div>
 
       <div class="card hud-panel" style="margin-bottom:20px;">
         <div class="hud-title">Revenue &amp; profit trend</div>
         <div id="an-trend-chart"></div>
         <div id="an-monthly-table"></div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;margin-bottom:20px;">
+        <div class="card">
+          <div class="an-section-title">📈 Yearly Breakdown</div>
+          <div id="an-yearly-table"></div>
+        </div>
+        <div class="card">
+          <div class="an-section-title">🗓️ Weekly Breakdown</div>
+          <div id="an-weekly-table"></div>
+        </div>
       </div>
 
       <div class="grid-2" style="align-items:start;margin-bottom:20px;">
@@ -938,6 +961,13 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 function todayISO(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtMoney(n){ n = Number(n)||0; return '€' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(iso){ if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
+// Returns the ISO date (YYYY-MM-DD) of the Monday starting the week containing dateStr.
+function mondayOfWeek(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day===0 ? -6 : 1-day));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function num(v){ return Number(v) || 0; }
 function currentUserEmail(){ return (window._authEmail) || ''; }
 
@@ -2553,12 +2583,29 @@ function renderAnalytics(){
 
   const totalRevenue = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
   const totalCost = DB.sales.reduce((a,s) => a + saleCostTotal(s), 0);
+  const totalProfitAllTime = totalRevenue - totalCost;
   const margin = totalRevenue ? ((totalRevenue-totalCost)/totalRevenue*100) : 0;
   const avgSale = DB.sales.length ? totalRevenue/DB.sales.length : 0;
+  const avgProfitPerOrder = DB.sales.length ? totalProfitAllTime/DB.sales.length : 0;
   document.getElementById('kpi-grid').innerHTML = `
     <div class="stat-card"><div class="stat-value">${margin.toFixed(1)}%</div><div class="stat-label">Profit Margin</div><div class="stat-sub">All time</div></div>
     <div class="stat-card"><div class="stat-value">${fmtMoney(avgSale)}</div><div class="stat-label">Avg Sale Value</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(avgProfitPerOrder)}</div><div class="stat-label">Avg Profit / Order</div><div class="stat-sub">All time</div></div>
     <div class="stat-card"><div class="stat-value">${DB.sales.reduce((a,s)=>a+s.qty,0)}</div><div class="stat-label">Units Sold</div><div class="stat-sub">All time</div></div>`;
+
+  // Custom date range
+  const rangeStartEl = document.getElementById('an-range-start');
+  const rangeEndEl = document.getElementById('an-range-end');
+  if (!rangeStartEl.value) rangeStartEl.value = todayISO().slice(0,8) + '01';
+  if (!rangeEndEl.value) rangeEndEl.value = todayISO();
+  const rangeSales = DB.sales.filter(s => s.date >= rangeStartEl.value && s.date <= rangeEndEl.value);
+  const rangeRevenue = rangeSales.reduce((a,s) => a + saleRevenue(s), 0);
+  const rangeCost = rangeSales.reduce((a,s) => a + saleCostTotal(s), 0);
+  const rangeProfit = rangeRevenue - rangeCost;
+  document.getElementById('an-range-summary').innerHTML = `
+    <div class="stat-card"><div class="stat-value" style="color:${rangeProfit>=0?'#16a34a':'#dc2626'};">${fmtMoney(rangeProfit)}</div><div class="stat-label">Profit in Range</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(rangeRevenue)}</div><div class="stat-label">Revenue in Range</div></div>
+    <div class="stat-card"><div class="stat-value">${rangeSales.length}</div><div class="stat-label">Orders in Range</div></div>`;
 
   // Revenue by product
   const byProduct = {};
@@ -2614,6 +2661,39 @@ function renderAnalytics(){
     <table class="tbl"><thead><tr><th>Month</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Margin</th></tr></thead><tbody>
       ${monthlyData.map(m => `<tr><td>${m.label}</td><td>${fmtMoney(m.revenue)}</td><td>${fmtMoney(m.cost)}</td><td style="color:${m.profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(m.profit)}</td><td>${m.margin.toFixed(1)}%</td></tr>`).join('')}
     </tbody></table>`;
+
+  // Yearly breakdown — every year from the earliest to the latest sale
+  const saleYears = DB.sales.map(s => Number(s.date.slice(0,4)));
+  const yearFrom = saleYears.length ? Math.min(...saleYears) : Number(todayISO().slice(0,4));
+  const yearTo = saleYears.length ? Math.max(...saleYears) : Number(todayISO().slice(0,4));
+  const yearlyData = [];
+  for (let y = yearFrom; y <= yearTo; y++) {
+    const s = DB.sales.filter(x => Number(x.date.slice(0,4)) === y);
+    const revenue = s.reduce((a,x) => a+saleRevenue(x), 0);
+    const cost = s.reduce((a,x) => a+saleCostTotal(x), 0);
+    const profit = revenue-cost;
+    yearlyData.push({ year: y, profit, orders: s.length, avgProfit: s.length ? profit/s.length : 0 });
+  }
+  document.getElementById('an-yearly-table').innerHTML = yearlyData.length ? `
+    <table class="tbl"><thead><tr><th>Year</th><th>Profit</th><th>Orders</th><th>Avg Profit/Order</th></tr></thead><tbody>
+      ${yearlyData.map(y => `<tr><td>${y.year}</td><td style="color:${y.profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(y.profit)}</td><td>${y.orders}</td><td>${fmtMoney(y.avgProfit)}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No sales yet.</p></div>`;
+
+  // Weekly breakdown (Mon–Sun) — only weeks that actually have sales
+  const weekMap = {};
+  DB.sales.forEach(s => { const mon = mondayOfWeek(s.date); (weekMap[mon] = weekMap[mon] || []).push(s); });
+  const weeklyData = Object.keys(weekMap).sort((a,b) => b.localeCompare(a)).map(mon => {
+    const s = weekMap[mon];
+    const revenue = s.reduce((a,x) => a+saleRevenue(x), 0);
+    const cost = s.reduce((a,x) => a+saleCostTotal(x), 0);
+    const end = new Date(mon+'T00:00:00'); end.setDate(end.getDate()+6);
+    const endIso = end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');
+    return { start: mon, end: endIso, profit: revenue-cost, orders: s.length };
+  });
+  document.getElementById('an-weekly-table').innerHTML = weeklyData.length ? `
+    <table class="tbl"><thead><tr><th>Week</th><th>Profit</th><th>Orders</th></tr></thead><tbody>
+      ${weeklyData.map(w => `<tr><td>${fmtDate(w.start)} – ${fmtDate(w.end)}</td><td style="color:${w.profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(w.profit)}</td><td>${w.orders}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No sales yet.</p></div>`;
 
   // Inventory intelligence
   const lowStock = DB.inventory.filter(i => i.qty > 0 && i.qty <= i.threshold);
