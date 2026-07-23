@@ -596,6 +596,10 @@ table.tbl tr:hover{background:#f7f8fb;}
 
       <div class="card" id="payout-tax-banner" style="margin-bottom:18px;"></div>
 
+      <div class="cf-section-title">🧾 Tax Breakdown</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;" id="tax-kpi-grid"></div>
+      <div class="card" style="margin-bottom:24px;"><div id="tax-monthly-table"></div></div>
+
       <div class="cf-section-title">📊 Profit &amp; Payout Summary</div>
       <div class="card" style="margin-bottom:24px;"><div id="payout-summary-table"></div></div>
 
@@ -1936,6 +1940,30 @@ function renderPayoutsPage(){
     </div>`;
 
   const periods = [...new Set(DB.sales.map(s => s.date.slice(0,7)))].sort();
+
+  // Tax is one figure per month (calculated on total profit, before the 50/50 split) — each
+  // partner's "share" of it is just half, since it comes off the top before anyone gets paid.
+  const taxRows = periods.map(period => ({
+    period,
+    netProfit: periodNetProfit(period),
+    tax: periodTaxProvision(period),
+  })).sort((a,b) => b.period.localeCompare(a.period));
+  const totalTax = taxRows.reduce((a,r) => a+r.tax, 0);
+
+  document.getElementById('tax-kpi-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${fmtMoney(totalTax/2)}</div><div class="stat-label">Dav's Tax Owed</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(totalTax/2)}</div><div class="stat-label">Dan's Tax Owed</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(totalTax)}</div><div class="stat-label">Total Tax Owed</div><div class="stat-sub">All time</div></div>`;
+
+  document.getElementById('tax-monthly-table').innerHTML = taxRows.length ? `
+    <table class="tbl"><thead><tr><th>Month</th><th>Net Profit</th><th>Tax Provision</th></tr></thead><tbody>
+      ${taxRows.map(r => { const label = new Date(r.period+'-01T00:00:00').toLocaleString('default',{month:'short',year:'numeric'}); return `<tr>
+        <td>${label}</td>
+        <td style="color:${r.netProfit>=0?'#16a34a':'#dc2626'};">${fmtMoney(r.netProfit)}</td>
+        <td>${fmtMoney(r.tax)}</td>
+      </tr>`; }).join('')}
+    </tbody></table>` : `<div class="empty-state"><p>No sales yet.</p></div>`;
+
   const partners = ['Dav','Dan'];
   const summaryRows = [];
   periods.forEach(period => {
