@@ -595,6 +595,7 @@ table.tbl tr:hover{background:#f7f8fb;}
       </div>
 
       <div class="card" id="payout-tax-banner" style="margin-bottom:18px;"></div>
+      <div class="card" id="tax-account-banner" style="margin-bottom:18px;"></div>
 
       <div class="cf-section-title">🧾 Tax Breakdown</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;" id="tax-kpi-grid"></div>
@@ -883,6 +884,19 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Tax account balance modal -->
+<div class="modal-overlay" id="tax-account-modal">
+  <div class="modal">
+    <h3>Set Tax Account Balance</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin:-8px 0 16px;">How much you actually have set aside right now for tax, so you can see it against what you owe.</p>
+    <div class="form-group"><label>Balance (€)</label><input type="number" id="tax-account-input" min="0" step="0.01"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('tax-account-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTaxAccountBalance()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -902,7 +916,7 @@ let cfShowCompleted = false;
 function defaultDB(){
   return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
     pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
-    taxRate: 0.20,
+    taxRate: 0.20, taxAccountBalance: 0,
     balanceBaseline: null, balanceBaselineDate: null };
 }
 
@@ -1851,6 +1865,17 @@ function saveTaxRate(){
   save();
 }
 
+function openTaxAccountModal(){
+  document.getElementById('tax-account-input').value = DB.taxAccountBalance || 0;
+  openModalEl('tax-account-modal');
+}
+
+function saveTaxAccountBalance(){
+  DB.taxAccountBalance = num(document.getElementById('tax-account-input').value);
+  closeModal('tax-account-modal');
+  save();
+}
+
 function renderPayoutsPage(){
   document.getElementById('payout-tax-banner').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -1869,6 +1894,16 @@ function renderPayoutsPage(){
     tax: periodTaxProvision(period),
   })).sort((a,b) => b.period.localeCompare(a.period));
   const totalTax = taxRows.reduce((a,r) => a+r.tax, 0);
+
+  const taxAccountBalance = DB.taxAccountBalance || 0;
+  const taxDiff = taxAccountBalance - totalTax;
+  document.getElementById('tax-account-banner').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div><strong>Tax account balance: ${fmtMoney(taxAccountBalance)}</strong>
+        <div style="color:${taxDiff>=0?'#16a34a':'#dc2626'};font-size:12.5px;margin-top:2px;">${taxDiff>=0 ? `${fmtMoney(taxDiff)} ahead of the ${fmtMoney(totalTax)} owed` : `${fmtMoney(Math.abs(taxDiff))} short of the ${fmtMoney(totalTax)} owed`}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openTaxAccountModal()">Edit</button>
+    </div>`;
 
   document.getElementById('tax-kpi-grid').innerHTML = `
     <div class="stat-card"><div class="stat-value">${fmtMoney(totalTax/2)}</div><div class="stat-label">Dav's Tax Owed</div><div class="stat-sub">All time</div></div>
