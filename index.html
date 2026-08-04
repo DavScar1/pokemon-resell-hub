@@ -194,6 +194,24 @@ table.tbl tr:hover{background:#f7f8fb;}
 .cal-cell.today .cal-date{color:var(--primary);}
 .cal-badge{display:block;border-radius:5px;padding:2px 5px;margin-bottom:3px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
+/* ---------- Events Calendar ---------- */
+.evt-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+.evt-cal-dow{text-align:center;font-size:11.5px;font-weight:700;color:var(--text-secondary);padding-bottom:10px;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);margin-bottom:8px;}
+.evt-cal-cell{min-height:112px;border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--card-bg);transition:box-shadow .15s,border-color .15s;}
+.evt-cal-cell.weekend{background:#fafbfd;}
+.evt-cal-cell:not(.empty):hover{box-shadow:0 4px 14px rgba(23,26,38,.08);border-color:var(--border-strong);}
+.evt-cal-cell.empty{background:transparent;border-color:transparent;}
+.evt-cal-date{font-weight:800;font-size:15px;color:var(--text);margin-bottom:8px;}
+.evt-cal-cell.today{background:rgba(124,58,237,.05);border-color:var(--accent2);}
+.evt-cal-cell.today .evt-cal-date{color:var(--accent2);}
+.evt-cal-chip{display:block;background:rgba(124,58,237,.08);border-left:3px solid var(--accent2);color:var(--text);padding:4px 7px;margin-bottom:5px;border-radius:0 6px 6px 0;font-size:11.5px;font-weight:600;line-height:1.35;cursor:pointer;}
+.evt-cal-chip:hover{background:rgba(124,58,237,.14);}
+.evt-upcoming-row{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--border);}
+.evt-upcoming-row:last-child{border-bottom:none;}
+.evt-upcoming-date{width:56px;flex-shrink:0;text-align:center;background:rgba(124,58,237,.08);border-radius:9px;padding:7px 0;}
+.evt-upcoming-date .d{font-size:17px;font-weight:800;color:var(--accent2);line-height:1;}
+.evt-upcoming-date .m{font-size:10px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+
 /* ---------- Misc ---------- */
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
 .an-section-title{font-size:14px;font-weight:700;margin-bottom:12px;}
@@ -266,6 +284,11 @@ table.tbl tr:hover{background:#f7f8fb;}
   .cal-cell{min-height:52px;padding:4px;font-size:10px;}
   .cal-badge{font-size:0;padding:3px;text-align:center;}
   .cal-badge::before{content:'●';font-size:9px;}
+  .evt-cal-grid{grid-template-columns:repeat(7,minmax(34px,1fr));gap:4px;}
+  .evt-cal-cell{min-height:56px;padding:4px;}
+  .evt-cal-date{font-size:11px;margin-bottom:3px;}
+  .evt-cal-chip{font-size:0;padding:3px;text-align:center;}
+  .evt-cal-chip::before{content:'●';font-size:9px;}
   .cf-kpis{grid-template-columns:repeat(2,1fr);}
   .cf-stage-arrow{display:none;}
   .cf-cards-grid{grid-template-columns:1fr;}
@@ -317,6 +340,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="notes" onclick="showPage('notes')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notes</button>
     <button class="nav-item" data-page="pocket" onclick="showPage('pocket')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M19 7H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><circle cx="16" cy="12" r="1.5"/></svg>Revolut Pocket</button>
     <button class="nav-item" data-page="payouts" onclick="showPage('payouts')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg>Tax</button>
+    <button class="nav-item" data-page="events" onclick="showPage('events')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2m4 0h2M8 18h2"/></svg>Events</button>
     <div class="sidebar-footer">
       <div class="user-email" id="current-user-email"></div>
       <button onclick="window.authLogout && window.authLogout()">Log out</button>
@@ -600,6 +624,34 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="cf-section-title">🧾 Tax Breakdown</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;" id="tax-kpi-grid"></div>
       <div class="card"><div id="tax-monthly-table"></div></div>
+    </div>
+
+    <!-- ---------------- Events Calendar ---------------- -->
+    <div class="page" id="page-events">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2m4 0h2M8 18h2"/></svg>Events</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Monthly reviews, meetings, and anything else worth scheduling.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openEventModal()">+ Add Event</button>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="section-header" style="margin-bottom:14px;">
+          <button class="btn btn-secondary btn-sm" onclick="changeEventMonth(-1)">← Prev</button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="card-title" style="margin:0;font-size:16px;" id="event-month-label"></div>
+            <button class="btn btn-secondary btn-sm" onclick="goToEventToday()">Today</button>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="changeEventMonth(1)">Next →</button>
+        </div>
+        <div class="evt-cal-grid" id="event-cal-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Upcoming</div>
+        <div id="event-upcoming-list" style="margin-top:6px;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -897,6 +949,26 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Event modal -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal">
+    <h3 id="event-modal-title">Add Event</h3>
+    <input type="hidden" id="event-edit-id">
+    <div class="form-group"><label>Title</label><input type="text" id="event-title" placeholder="e.g. Monthly Review"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input type="date" id="event-date"></div>
+      <div class="form-group"><label>Repeats</label>
+        <select id="event-recurrence"><option value="none">Does not repeat</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="event-notes" rows="3" placeholder="Agenda, who's involved, anything worth remembering"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('event-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -910,13 +982,14 @@ const LOCAL_KEY = 'pokemonResellHubDB';
 let DB = defaultDB();
 let currentPage = 'dashboard';
 let calMonth = new Date();
+let eventMonth = new Date();
 let invCatFilter = 'All';
 let cfShowCompleted = false;
 
 function defaultDB(){
   return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
     pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
-    taxRate: 0.20, taxAccountBalance: 0,
+    taxRate: 0.20, taxAccountBalance: 0, events: [],
     balanceBaseline: null, balanceBaselineDate: null };
 }
 
@@ -1026,6 +1099,7 @@ function renderCurrentPage(){
   else if (currentPage === 'notes') renderNotesPage();
   else if (currentPage === 'pocket') renderPocketPage();
   else if (currentPage === 'payouts') renderPayoutsPage();
+  else if (currentPage === 'events') renderEventsPage();
 }
 
 function populateInventoryDatalist(){
@@ -2190,6 +2264,157 @@ function renderCalendar(){
         </div></td>
       </tr>`; }).join('')}
     </tbody></table>` : `<div class="empty-state"><p>No supplier orders yet. Click "+ Add Order" to plan a restock.</p></div>`;
+}
+
+// ---------------------------------------------------------------
+// EVENTS CALENDAR  (meetings, reviews — with weekly/monthly recurrence)
+// ---------------------------------------------------------------
+function isoOfDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// Returns the ISO dates within the given year/month (0-indexed) that a (possibly recurring)
+// event falls on. Recurrence only ever looks forward from the event's own anchor date.
+function eventOccurrencesInMonth(ev, year, month){
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month+1, 0);
+  const anchor = new Date(ev.date+'T00:00:00');
+  if (anchor > monthEnd) return [];
+  const occurrences = [];
+  if (!ev.recurrence || ev.recurrence === 'none') {
+    if (anchor >= monthStart && anchor <= monthEnd) occurrences.push(ev.date);
+  } else if (ev.recurrence === 'weekly') {
+    const d = new Date(anchor);
+    if (d < monthStart) {
+      const weeksToSkip = Math.ceil((monthStart - d) / (7*86400000));
+      d.setDate(d.getDate() + weeksToSkip*7);
+    }
+    while (d <= monthEnd) { occurrences.push(isoOfDate(d)); d.setDate(d.getDate()+7); }
+  } else if (ev.recurrence === 'monthly') {
+    if (monthStart >= new Date(anchor.getFullYear(), anchor.getMonth(), 1)) {
+      const lastDay = monthEnd.getDate();
+      const d = new Date(year, month, Math.min(anchor.getDate(), lastDay));
+      if (d >= anchor) occurrences.push(isoOfDate(d));
+    }
+  }
+  return occurrences;
+}
+
+// Next ~8 upcoming occurrences (today onward) across every event, scanning the next year.
+function computeUpcomingEvents(){
+  const todayStr = todayISO();
+  const base = new Date();
+  const found = [];
+  for (let i=0; i<12 && found.length<8; i++) {
+    const y = base.getFullYear(), m = base.getMonth()+i;
+    DB.events.forEach(ev => {
+      eventOccurrencesInMonth(ev, new Date(y,m,1).getFullYear(), new Date(y,m,1).getMonth()).forEach(date => {
+        if (date >= todayStr) found.push({ ev, date });
+      });
+    });
+  }
+  found.sort((a,b) => a.date.localeCompare(b.date));
+  return found.slice(0,8);
+}
+
+function changeEventMonth(delta){
+  eventMonth = new Date(eventMonth.getFullYear(), eventMonth.getMonth()+delta, 1);
+  renderEventsPage();
+}
+
+function goToEventToday(){
+  eventMonth = new Date();
+  renderEventsPage();
+}
+
+function renderEventsPage(){
+  const y = eventMonth.getFullYear(), m = eventMonth.getMonth();
+  document.getElementById('event-month-label').textContent = eventMonth.toLocaleString('default',{month:'long', year:'numeric'});
+
+  const firstDow = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const todayStr = todayISO();
+
+  const byDate = {};
+  DB.events.forEach(ev => {
+    eventOccurrencesInMonth(ev, y, m).forEach(date => (byDate[date] = byDate[date] || []).push(ev));
+  });
+
+  const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = dows.map(d => `<div class="evt-cal-dow">${d}</div>`).join('');
+  for (let i=0; i<firstDow; i++) html += `<div class="evt-cal-cell empty"></div>`;
+  for (let d=1; d<=daysInMonth; d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(y,m,d).getDay();
+    const events = byDate[dateStr] || [];
+    const classes = ['evt-cal-cell'];
+    if (dateStr === todayStr) classes.push('today');
+    if (dow === 0 || dow === 6) classes.push('weekend');
+    html += `<div class="${classes.join(' ')}">
+      <div class="evt-cal-date">${d}</div>
+      ${events.map(ev => `<span class="evt-cal-chip" title="${escapeHtml(ev.title)}" onclick="openEventModal('${ev.id}')">${escapeHtml(ev.title)}</span>`).join('')}
+    </div>`;
+  }
+  document.getElementById('event-cal-grid').innerHTML = html;
+
+  const upcoming = computeUpcomingEvents();
+  document.getElementById('event-upcoming-list').innerHTML = upcoming.length ? upcoming.map(({ev,date}) => {
+    const d = new Date(date+'T00:00:00');
+    return `<div class="evt-upcoming-row">
+      <div class="evt-upcoming-date"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleString('default',{month:'short'})}</div></div>
+      <div style="flex:1;">
+        <strong>${escapeHtml(ev.title)}</strong>${ev.recurrence && ev.recurrence!=='none' ? ` <span style="color:var(--text-muted);font-size:11px;">(${ev.recurrence})</span>` : ''}
+        ${ev.notes ? `<div style="color:var(--text-secondary);font-size:12.5px;margin-top:2px;">${escapeHtml(ev.notes)}</div>` : ''}
+      </div>
+      <div class="row-actions">
+        <button class="icon-btn" onclick="openEventModal('${ev.id}')">✏️</button>
+        <button class="icon-btn" onclick="deleteEvent('${ev.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty-state"><p>Nothing scheduled. Click "+ Add Event" to plan a review or meeting.</p></div>`;
+}
+
+function openEventModal(id){
+  document.getElementById('event-edit-id').value = id || '';
+  document.getElementById('event-modal-title').textContent = id ? 'Edit Event' : 'Add Event';
+  if (id) {
+    const ev = DB.events.find(x => x.id === id);
+    document.getElementById('event-title').value = ev.title;
+    document.getElementById('event-date').value = ev.date;
+    document.getElementById('event-recurrence').value = ev.recurrence || 'none';
+    document.getElementById('event-notes').value = ev.notes || '';
+  } else {
+    document.getElementById('event-title').value = '';
+    document.getElementById('event-date').value = todayISO();
+    document.getElementById('event-recurrence').value = 'none';
+    document.getElementById('event-notes').value = '';
+  }
+  openModalEl('event-modal');
+}
+
+function saveEvent(){
+  const id = document.getElementById('event-edit-id').value;
+  const title = document.getElementById('event-title').value.trim();
+  if (!title) { alert('Please enter a title.'); return; }
+  const data = {
+    title,
+    date: document.getElementById('event-date').value || todayISO(),
+    recurrence: document.getElementById('event-recurrence').value,
+    notes: document.getElementById('event-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.events.find(x => x.id === id), data);
+  } else {
+    data.id = uid();
+    data.loggedBy = currentUserEmail();
+    DB.events.push(data);
+  }
+  closeModal('event-modal');
+  save();
+}
+
+function deleteEvent(id){
+  if (!confirm('Delete this event? If it repeats, this removes every future occurrence.')) return;
+  DB.events = DB.events.filter(ev => ev.id !== id);
+  save();
 }
 
 let _orderItemsDraft = [];
