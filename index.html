@@ -343,10 +343,12 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="payouts" onclick="showPage('payouts')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg>Tax</button>
     <button class="nav-item" data-page="events" onclick="showPage('events')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2m4 0h2M8 18h2"/></svg>Events</button>
     <button class="nav-item" data-page="investors" onclick="showPage('investors')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Investors</button>
+    <button class="nav-item" data-page="buyers" onclick="showPage('buyers')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Buyers</button>
     <div class="sidebar-footer">
       <div class="user-email" id="current-user-email"></div>
       <button onclick="exportBackup()">⬇ Export Backup</button>
       <button onclick="openTrashModal()">🗑 Recently Deleted</button>
+      <button onclick="openActivityModal()">📜 Activity Log</button>
       <button onclick="window.authLogout && window.authLogout()">Log out</button>
     </div>
   </div>
@@ -672,6 +674,21 @@ table.tbl tr:hover{background:#f7f8fb;}
 
       <div class="cf-cards-grid" id="investor-list"></div>
     </div>
+
+    <!-- ---------------- Buyers ---------------- -->
+    <div class="page" id="page-buyers">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Buyers</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Your customers, and their purchase history — tag a Buyer on a sale to build this up automatically.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openBuyerModal()">+ Add Buyer</button>
+      </div>
+
+      <div class="kpi-grid" id="buyer-kpi-grid" style="margin-bottom:20px;"></div>
+
+      <div class="cf-cards-grid" id="buyer-list"></div>
+    </div>
   </div>
 </div>
 
@@ -700,6 +717,10 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="form-group"><label>Item</label>
       <input type="text" id="sale-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box" oninput="syncSaleItemFromInventory()">
       <datalist id="inventory-names"></datalist>
+    </div>
+    <div class="form-group"><label>Buyer <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label>
+      <input type="text" id="sale-buyer" list="buyer-names" placeholder="e.g. John, @username">
+      <datalist id="buyer-names"></datalist>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Category</label>
@@ -1010,6 +1031,22 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Buyer modal -->
+<div class="modal-overlay" id="buyer-modal">
+  <div class="modal">
+    <h3 id="buyer-modal-title">Add Buyer</h3>
+    <input type="hidden" id="buyer-edit-id">
+    <input type="hidden" id="buyer-orig-name">
+    <div class="form-group"><label>Name</label><input type="text" id="buyer-name" placeholder="e.g. John, @username"></div>
+    <div class="form-group"><label>Contact <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="text" id="buyer-contact" placeholder="Email, phone, Discord, etc."></div>
+    <div class="form-group"><label>Notes</label><textarea id="buyer-notes" rows="2" placeholder="Anything worth remembering about this buyer"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('buyer-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBuyer()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Trash modal -->
 <div class="modal-overlay" id="trash-modal">
   <div class="modal" style="max-width:560px;">
@@ -1018,6 +1055,18 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div id="trash-list" style="max-height:50vh;overflow-y:auto;"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('trash-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Activity Log modal -->
+<div class="modal-overlay" id="activity-modal">
+  <div class="modal" style="max-width:560px;">
+    <h3>Activity Log</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin:-8px 0 16px;">Who did what, when — across the whole shared workspace.</p>
+    <div id="activity-list" style="max-height:55vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('activity-modal')">Close</button>
     </div>
   </div>
 </div>
@@ -1042,7 +1091,7 @@ let cfShowCompleted = false;
 function defaultDB(){
   return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
     pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
-    taxRate: 0.20, taxAccountBalance: 0, events: [], investments: [], trash: [],
+    taxRate: 0.20, taxAccountBalance: 0, events: [], investments: [], buyers: [], trash: [], activityLog: [],
     balanceBaseline: null, balanceBaselineDate: null };
 }
 
@@ -1103,6 +1152,7 @@ function markSaleCashReceived(id){
   if (!s) return;
   s.cashStatus = 'received';
   s.cashInDate = todayISO();
+  logActivity(`Marked cash received: ${s.item} × ${s.qty} — ${fmtMoney(saleRevenue(s))}`);
   save();
 }
 
@@ -1111,6 +1161,7 @@ function markSaleCashPending(id){
   if (!s) return;
   s.cashStatus = 'pending';
   s.cashInDate = '';
+  logActivity(`Marked cash awaiting: ${s.item} × ${s.qty} — ${fmtMoney(saleRevenue(s))}`);
   save();
 }
 
@@ -1141,6 +1192,7 @@ function closeSidebar(){
 
 function renderCurrentPage(){
   populateInventoryDatalist();
+  populateBuyerDatalist();
   if (currentPage === 'dashboard') renderDashboard();
   else if (currentPage === 'sales') renderSales();
   else if (currentPage === 'inventory') renderInventory();
@@ -1154,6 +1206,7 @@ function renderCurrentPage(){
   else if (currentPage === 'payouts') renderPayoutsPage();
   else if (currentPage === 'events') renderEventsPage();
   else if (currentPage === 'investors') renderInvestorsPage();
+  else if (currentPage === 'buyers') renderBuyersPage();
 }
 
 function populateInventoryDatalist(){
@@ -1164,11 +1217,20 @@ function populateInventoryDatalist(){
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ---------------------------------------------------------------
+// ACTIVITY LOG  (who did what, when — shared visibility across both partners)
+// ---------------------------------------------------------------
+function logActivity(action){
+  DB.activityLog = DB.activityLog || [];
+  DB.activityLog.unshift({ id: uid(), action, by: currentUserEmail(), at: new Date().toISOString() });
+  if (DB.activityLog.length > 300) DB.activityLog.length = 300;
+}
+
+// ---------------------------------------------------------------
 // TRASH  (soft delete — every deleteX() routes through here instead of splicing directly)
 // ---------------------------------------------------------------
 const TRASH_LABELS = { sales:'Sale', inventory:'Inventory', deals:'Deal', channels:'Channel',
   priceRefs:'Price Ref', notes:'Note', pocketEntries:'Pocket', events:'Event',
-  investments:'Investment', orders:'Order' };
+  investments:'Investment', orders:'Order', buyers:'Buyer' };
 
 function softDelete(collection, id, label){
   const idx = DB[collection].findIndex(x => x.id === id);
@@ -1176,6 +1238,7 @@ function softDelete(collection, id, label){
   const [item] = DB[collection].splice(idx, 1);
   DB.trash = DB.trash || [];
   DB.trash.unshift({ id: uid(), collection, item, label, deletedAt: todayISO() });
+  logActivity(`Deleted ${TRASH_LABELS[collection]||collection}: ${label}`);
   if (DB.trash.length > 200) DB.trash.length = 200;
   save();
 }
@@ -1186,13 +1249,16 @@ function restoreFromTrash(trashId){
   const [entry] = DB.trash.splice(idx, 1);
   DB[entry.collection] = DB[entry.collection] || [];
   DB[entry.collection].push(entry.item);
+  logActivity(`Restored ${TRASH_LABELS[entry.collection]||entry.collection}: ${entry.label}`);
   save();
   renderTrashModal();
 }
 
 function permanentlyDelete(trashId){
   if (!confirm('Permanently delete this? This cannot be undone.')) return;
-  DB.trash = DB.trash.filter(t => t.id !== trashId);
+  const t = DB.trash.find(x => x.id === trashId);
+  DB.trash = DB.trash.filter(x => x.id !== trashId);
+  if (t) logActivity(`Permanently deleted ${TRASH_LABELS[t.collection]||t.collection}: ${t.label}`);
   save();
   renderTrashModal();
 }
@@ -1216,6 +1282,24 @@ function renderTrashModal(){
         <button class="icon-btn" onclick="permanentlyDelete('${t.id}')">🗑️</button>
       </div>
     </div>`).join('') : `<div class="empty-state"><p>Nothing in here. Anything you delete shows up here first.</p></div>`;
+}
+
+function openActivityModal(){
+  renderActivityModal();
+  openModalEl('activity-modal');
+}
+
+function renderActivityModal(){
+  const items = [...(DB.activityLog||[])].sort((a,b) => b.at.localeCompare(a.at));
+  document.getElementById('activity-list').innerHTML = items.length ? items.map(a => {
+    const d = new Date(a.at);
+    const dateStr = fmtDate(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+    const timeStr = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+      <div>${escapeHtml(a.action)}</div>
+      <div style="color:var(--text-muted);font-size:11px;margin-top:2px;">${escapeHtml(a.by || 'Unknown')} · ${dateStr} ${timeStr}</div>
+    </div>`;
+  }).join('') : `<div class="empty-state"><p>No activity yet.</p></div>`;
 }
 
 function exportBackup(){
@@ -1316,6 +1400,7 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-date').value = s.date;
     populatePlatformSelect('sale-platform', s.platform);
     document.getElementById('sale-item').value = s.item;
+    document.getElementById('sale-buyer').value = s.buyer || '';
     document.getElementById('sale-category').value = s.category;
     document.getElementById('sale-qty').value = s.qty;
     document.getElementById('sale-price').value = s.price;
@@ -1332,6 +1417,7 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-date').value = todayISO();
     populatePlatformSelect('sale-platform', '');
     document.getElementById('sale-item').value = prefillItem || '';
+    document.getElementById('sale-buyer').value = '';
     document.getElementById('sale-category').value = 'Booster Box';
     document.getElementById('sale-qty').value = 1;
     document.getElementById('sale-price').value = '';
@@ -1401,6 +1487,7 @@ function saveSale(){
     date: document.getElementById('sale-date').value || todayISO(),
     platform: document.getElementById('sale-platform').value,
     item, qty,
+    buyer: document.getElementById('sale-buyer').value.trim(),
     category: document.getElementById('sale-category').value,
     price: num(document.getElementById('sale-price').value),
     cost: num(document.getElementById('sale-cost').value),
@@ -1416,6 +1503,7 @@ function saveSale(){
   if (id) {
     const existing = DB.sales.find(x => x.id === id);
     Object.assign(existing, data);
+    logActivity(`Edited sale: ${item} × ${qty} — ${fmtMoney(data.price*qty)}`);
   } else {
     data.id = uid();
     data.loggedBy = currentUserEmail();
@@ -1436,6 +1524,7 @@ function saveSale(){
     DB.sales.push(data);
     if (invItem) invItem.qty = Math.max(0, invItem.qty - qty);
     if (dealId) DB.deals = DB.deals.filter(d => d.id !== dealId);
+    logActivity(`Added sale: ${item} × ${qty} — ${fmtMoney(data.price*qty)}`);
   }
   closeModal('sale-modal');
   save();
@@ -1532,9 +1621,11 @@ function saveInventoryItem(){
   };
   if (id) {
     Object.assign(DB.inventory.find(x => x.id === id), data);
+    logActivity(`Edited inventory: ${name} (${data.qty} in stock)`);
   } else {
     data.id = uid();
     DB.inventory.push(data);
+    logActivity(`Added inventory: ${name} (${data.qty} in stock)`);
   }
   closeModal('inventory-modal');
   save();
@@ -1616,11 +1707,13 @@ function saveDeal(){
   };
   if (id) {
     Object.assign(DB.deals.find(x => x.id === id), data);
+    logActivity(`Edited deal: ${item} — ${buyer}`);
   } else {
     data.id = uid();
     data.date = todayISO();
     data.loggedBy = currentUserEmail();
     DB.deals.push(data);
+    logActivity(`Added deal: ${item} — ${buyer}`);
   }
   closeModal('deal-modal');
   save();
@@ -1637,6 +1730,7 @@ function markDealPaid(id){
   if (!deal) return;
   openSaleModal(null, deal.item);
   populatePlatformSelect('sale-platform', deal.platform || 'Other');
+  document.getElementById('sale-buyer').value = deal.buyer || '';
   document.getElementById('sale-price').value = deal.price || '';
   document.getElementById('sale-deal-id').value = deal.id;
   computeSalePreview();
@@ -1736,9 +1830,11 @@ function saveChannel(){
   };
   if (id) {
     Object.assign(DB.channels.find(x => x.id === id), data);
+    logActivity(`Edited channel: ${name} (${data.owner})`);
   } else {
     data.id = uid();
     DB.channels.push(data);
+    logActivity(`Added channel: ${name} (${data.owner})`);
   }
   closeModal('channel-modal');
   save();
@@ -1819,9 +1915,11 @@ function savePriceRef(){
   };
   if (id) {
     Object.assign(DB.priceRefs.find(x => x.id === id), data);
+    logActivity(`Edited price reference: ${name}`);
   } else {
     data.id = uid();
     DB.priceRefs.push(data);
+    logActivity(`Added price reference: ${name}`);
   }
   closeModal('priceref-modal');
   save();
@@ -1858,9 +1956,11 @@ function saveNote(){
   };
   if (id) {
     Object.assign(DB.notes.find(x => x.id === id), data);
+    logActivity(`Edited note: ${title}`);
   } else {
     data.id = uid();
     DB.notes.push(data);
+    logActivity(`Added note: ${title}`);
   }
   closeModal('note-modal');
   save();
@@ -1939,10 +2039,12 @@ function savePocketEntry(){
   }
   if (id) {
     Object.assign(DB.pocketEntries.find(x => x.id === id), data);
+    logActivity(`Edited pocket entry: ${pocketEntryLabel(data)} — ${fmtMoney(amount)}`);
   } else {
     data.id = uid();
     data.loggedBy = currentUserEmail();
     DB.pocketEntries.push(data);
+    logActivity(`Added pocket entry: ${pocketEntryLabel(data)} — ${fmtMoney(amount)}`);
   }
   closeModal('pocket-modal');
   save();
@@ -1968,6 +2070,7 @@ function savePocketOpening(){
     openingDan: num(document.getElementById('pocket-opening-dan').value),
     openingDate: document.getElementById('pocket-opening-date').value || todayISO(),
   };
+  logActivity(`Set Pocket opening balance: Dav ${fmtMoney(DB.pocket.openingDav)} · Dan ${fmtMoney(DB.pocket.openingDan)}`);
   closeModal('pocket-opening-modal');
   save();
 }
@@ -2057,6 +2160,7 @@ function openTaxRateModal(){
 
 function saveTaxRate(){
   DB.taxRate = num(document.getElementById('tax-rate-input').value) / 100;
+  logActivity(`Set tax rate: ${(DB.taxRate*100).toFixed(1)}%`);
   closeModal('tax-rate-modal');
   save();
 }
@@ -2068,6 +2172,7 @@ function openTaxAccountModal(){
 
 function saveTaxAccountBalance(){
   DB.taxAccountBalance = num(document.getElementById('tax-account-input').value);
+  logActivity(`Set tax account balance: ${fmtMoney(DB.taxAccountBalance)}`);
   closeModal('tax-account-modal');
   save();
 }
@@ -2533,10 +2638,12 @@ function saveEvent(){
   };
   if (id) {
     Object.assign(DB.events.find(x => x.id === id), data);
+    logActivity(`Edited event: ${title}`);
   } else {
     data.id = uid();
     data.loggedBy = currentUserEmail();
     DB.events.push(data);
+    logActivity(`Added event: ${title}`);
   }
   closeModal('event-modal');
   save();
@@ -2610,9 +2717,11 @@ function saveInvestment(){
   };
   if (id) {
     Object.assign(DB.investments.find(x => x.id === id), data);
+    logActivity(`Edited investment: ${name} — ${fmtMoney(amount)}`);
   } else {
     data.id = uid();
     DB.investments.push(data);
+    logActivity(`Added investment: ${name} — ${fmtMoney(amount)}`);
   }
   closeModal('investment-modal');
   save();
@@ -2628,6 +2737,7 @@ function toggleInvestmentPaid(id){
   const inv = DB.investments.find(x => x.id === id);
   if (!inv) return;
   inv.status = inv.status === 'Paid' ? 'Unpaid' : 'Paid';
+  logActivity(`Marked investment ${inv.status.toLowerCase()}: ${inv.name} — ${fmtMoney(inv.amount)}`);
   save();
 }
 
@@ -2670,6 +2780,125 @@ function renderInvestorsPage(){
       </div>
     </div>`;
   }).join('') : `<div class="empty-state"><p>No investments yet. Click "+ Add Investment" when someone puts money into a specific order.</p></div>`;
+}
+
+// ---------------------------------------------------------------
+// BUYERS  (customer directory, built from the optional Buyer field on sales)
+// ---------------------------------------------------------------
+function populateBuyerDatalist(){
+  const dl = document.getElementById('buyer-names');
+  if (!dl) return;
+  const names = new Set(DB.buyers.map(b => b.name));
+  DB.sales.forEach(s => { if (s.buyer) names.add(s.buyer); });
+  dl.innerHTML = [...names].map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
+function buyerStats(name){
+  const key = name.trim().toLowerCase();
+  const matching = DB.sales.filter(s => (s.buyer||'').trim().toLowerCase() === key)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  return {
+    totalSpent: matching.reduce((a,s) => a + saleRevenue(s), 0),
+    purchaseCount: matching.length,
+    lastPurchase: matching.length ? matching[0].date : null,
+    sales: matching,
+  };
+}
+
+function renderBuyersPage(){
+  const profileNames = new Set(DB.buyers.map(b => b.name.trim().toLowerCase()));
+  const saleBuyerNames = [...new Set(DB.sales.map(s => (s.buyer||'').trim()).filter(Boolean))];
+  const inferredOnly = saleBuyerNames.filter(n => !profileNames.has(n.toLowerCase()));
+
+  const allBuyers = [
+    ...DB.buyers.map(b => ({ ...b, hasProfile: true })),
+    ...inferredOnly.map(n => ({ id: null, name: n, contact: '', notes: '', hasProfile: false })),
+  ];
+  const rows = allBuyers.map(b => ({ buyer: b, stats: buyerStats(b.name) }))
+    .sort((a,b) => b.stats.totalSpent - a.stats.totalSpent);
+
+  const totalCustomers = rows.length;
+  const totalRevenue = rows.reduce((a,r) => a + r.stats.totalSpent, 0);
+  const repeatBuyers = rows.filter(r => r.stats.purchaseCount > 1).length;
+  document.getElementById('buyer-kpi-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${totalCustomers}</div><div class="stat-label">Buyers</div><div class="stat-sub">With at least one sale or profile</div></div>
+    <div class="stat-card"><div class="stat-value">${repeatBuyers}</div><div class="stat-label">Repeat Buyers</div><div class="stat-sub">2+ purchases</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtMoney(totalRevenue)}</div><div class="stat-label">Revenue from Named Buyers</div><div class="stat-sub">All time</div></div>`;
+
+  document.getElementById('buyer-list').innerHTML = rows.length ? rows.map(({buyer, stats}) => {
+    const editArgs = buyer.hasProfile ? `'${buyer.id}'` : `null,'${escapeHtml(buyer.name).replace(/'/g,"\\'")}'`;
+    const history = stats.sales.slice(0,5).map(s => `
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--border);font-size:12px;">
+        <span>${escapeHtml(s.item)} × ${s.qty}</span>
+        <span style="color:var(--text-secondary);">${fmtMoney(saleRevenue(s))} · ${fmtDate(s.date)}</span>
+      </div>`).join('');
+    return `<div class="cf-card">
+      <div class="cf-card-top">
+        <div><strong>${escapeHtml(buyer.name)}</strong>${buyer.contact ? `<div class="cf-card-sub">${escapeHtml(buyer.contact)}</div>` : ''}</div>
+        <span class="pill ${stats.purchaseCount>1?'pill-green':'pill-yellow'}">${stats.purchaseCount} purchase${stats.purchaseCount===1?'':'s'}</span>
+      </div>
+      <div style="display:flex;gap:18px;margin-top:12px;font-size:12px;color:var(--text-secondary);">
+        <div>Total Spent<br><strong style="color:var(--text);font-size:14px;">${fmtMoney(stats.totalSpent)}</strong></div>
+        <div>Last Purchase<br><strong style="color:var(--text);font-size:14px;">${stats.lastPurchase ? fmtDate(stats.lastPurchase) : '—'}</strong></div>
+      </div>
+      ${history ? `<div style="margin-top:8px;">${history}</div>` : ''}
+      ${buyer.notes ? `<div class="cf-card-sub" style="margin-top:8px;">${escapeHtml(buyer.notes)}</div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:12px;">
+        <button class="icon-btn" onclick="openBuyerModal(${editArgs})">✏️</button>
+        ${buyer.hasProfile ? `<button class="icon-btn" onclick="deleteBuyer('${buyer.id}')">🗑️</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty-state"><p>No buyers yet. Tag a Buyer when logging a sale, or click "+ Add Buyer" to add one directly.</p></div>`;
+}
+
+function openBuyerModal(id, prefillName){
+  document.getElementById('buyer-edit-id').value = id || '';
+  document.getElementById('buyer-orig-name').value = '';
+  document.getElementById('buyer-modal-title').textContent = id ? 'Edit Buyer' : 'Add Buyer';
+  if (id) {
+    const b = DB.buyers.find(x => x.id === id);
+    document.getElementById('buyer-name').value = b.name;
+    document.getElementById('buyer-orig-name').value = b.name;
+    document.getElementById('buyer-contact').value = b.contact || '';
+    document.getElementById('buyer-notes').value = b.notes || '';
+  } else {
+    document.getElementById('buyer-name').value = prefillName || '';
+    document.getElementById('buyer-contact').value = '';
+    document.getElementById('buyer-notes').value = '';
+  }
+  openModalEl('buyer-modal');
+}
+
+function saveBuyer(){
+  const id = document.getElementById('buyer-edit-id').value;
+  const origName = document.getElementById('buyer-orig-name').value;
+  const name = document.getElementById('buyer-name').value.trim();
+  if (!name) { alert("Please enter the buyer's name."); return; }
+  const data = {
+    name,
+    contact: document.getElementById('buyer-contact').value.trim(),
+    notes: document.getElementById('buyer-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.buyers.find(x => x.id === id), data);
+    // Renaming a profile shouldn't orphan its purchase history — relabel matching sales too.
+    if (origName && origName.toLowerCase() !== name.toLowerCase()) {
+      DB.sales.forEach(s => { if ((s.buyer||'').trim().toLowerCase() === origName.trim().toLowerCase()) s.buyer = name; });
+    }
+    logActivity(`Edited buyer: ${name}`);
+  } else {
+    data.id = uid();
+    DB.buyers.push(data);
+    logActivity(`Added buyer: ${name}`);
+  }
+  closeModal('buyer-modal');
+  save();
+}
+
+function deleteBuyer(id){
+  if (!confirm('Delete this buyer profile? (You can restore it from Recently Deleted. Past sales keep showing the name, just without contact/notes.)')) return;
+  const b = DB.buyers.find(x => x.id === id);
+  softDelete('buyers', id, b.name);
 }
 
 let _orderItemsDraft = [];
@@ -2744,11 +2973,13 @@ function saveOrder(){
     // Preserve existing line-item ids by position so already-linked sales stay matched.
     data.items = items.map((it, i) => ({ id: existingItems[i] ? existingItems[i].id : uid(), ...it }));
     Object.assign(existing, data);
+    logActivity(`Edited order: ${orderDisplayName(data)} — ${supplier}`);
   } else {
     data.id = uid();
     data.items = items.map(it => ({ id: uid(), ...it }));
     data.loggedBy = currentUserEmail();
     DB.orders.push(data);
+    logActivity(`Added order: ${orderDisplayName(data)} — ${supplier}`);
   }
   closeModal('order-modal');
   save();
@@ -2770,6 +3001,7 @@ function openBalanceModal(){
 function saveBalanceBaseline(){
   DB.balanceBaselineDate = document.getElementById('balance-date').value || todayISO();
   DB.balanceBaseline = num(document.getElementById('balance-amount').value);
+  logActivity(`Set Cash Flow starting balance: ${fmtMoney(DB.balanceBaseline)} as of ${fmtDate(DB.balanceBaselineDate)}`);
   closeModal('balance-modal');
   save();
 }
@@ -2778,6 +3010,7 @@ function clearBalanceBaseline(){
   if (!confirm('Remove the starting balance and go back to all-time tracking?')) return;
   DB.balanceBaseline = null;
   DB.balanceBaselineDate = null;
+  logActivity('Removed Cash Flow starting balance');
   closeModal('balance-modal');
   save();
 }
@@ -2786,6 +3019,7 @@ function markOrderPlaced(id){
   const o = DB.orders.find(x => x.id === id);
   if (!o) return;
   o.status = 'Ordered';
+  logActivity(`Marked order Ordered: ${orderDisplayName(o)}`);
   save();
 }
 
@@ -2802,6 +3036,7 @@ function markOrderArrived(id){
       DB.inventory.push({ id: uid(), name: it.item, category: 'Other', qty: it.qty, cost: it.cost, threshold: 0, supplier: o.supplier, notes: '' });
     }
   });
+  logActivity(`Marked order Arrived: ${orderDisplayName(o)}`);
   save();
 }
 
