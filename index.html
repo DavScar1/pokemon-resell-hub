@@ -111,8 +111,9 @@ input,select,textarea{font-family:inherit;color-scheme:light;}
 .nav-item .icon{font-size:15px;width:18px;text-align:center;}
 .sidebar-footer{margin-top:auto;padding:14px 8px 0;border-top:1px solid var(--border);}
 .sidebar-footer .user-email{font-size:11px;color:var(--text-muted);word-break:break-all;margin-bottom:6px;font-family:var(--font-mono);}
-.sidebar-footer button{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;text-decoration:underline;padding:2px 0;}
-.sidebar-footer button:hover{color:var(--red);}
+.sidebar-footer button{display:block;width:100%;text-align:left;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;text-decoration:underline;padding:2px 0;}
+.sidebar-footer button:hover{color:var(--primary);}
+.sidebar-footer button:last-child:hover{color:var(--red);}
 
 .main{flex:1 1 auto;min-width:0;margin-left:224px;padding:24px 30px 60px;max-width:1680px;}
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;}
@@ -344,6 +345,8 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="investors" onclick="showPage('investors')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Investors</button>
     <div class="sidebar-footer">
       <div class="user-email" id="current-user-email"></div>
+      <button onclick="exportBackup()">⬇ Export Backup</button>
+      <button onclick="openTrashModal()">🗑 Recently Deleted</button>
       <button onclick="window.authLogout && window.authLogout()">Log out</button>
     </div>
   </div>
@@ -1007,6 +1010,18 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Trash modal -->
+<div class="modal-overlay" id="trash-modal">
+  <div class="modal" style="max-width:560px;">
+    <h3>Recently Deleted</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin:-8px 0 16px;">Anything deleted from the app lands here first. Restore it, or remove it for good.</p>
+    <div id="trash-list" style="max-height:50vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('trash-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      APP LOGIC
 ============================================================ -->
@@ -1027,7 +1042,7 @@ let cfShowCompleted = false;
 function defaultDB(){
   return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
     pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
-    taxRate: 0.20, taxAccountBalance: 0, events: [], investments: [],
+    taxRate: 0.20, taxAccountBalance: 0, events: [], investments: [], trash: [],
     balanceBaseline: null, balanceBaselineDate: null };
 }
 
@@ -1147,6 +1162,74 @@ function populateInventoryDatalist(){
 }
 
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------------------------------------------------------------
+// TRASH  (soft delete — every deleteX() routes through here instead of splicing directly)
+// ---------------------------------------------------------------
+const TRASH_LABELS = { sales:'Sale', inventory:'Inventory', deals:'Deal', channels:'Channel',
+  priceRefs:'Price Ref', notes:'Note', pocketEntries:'Pocket', events:'Event',
+  investments:'Investment', orders:'Order' };
+
+function softDelete(collection, id, label){
+  const idx = DB[collection].findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const [item] = DB[collection].splice(idx, 1);
+  DB.trash = DB.trash || [];
+  DB.trash.unshift({ id: uid(), collection, item, label, deletedAt: todayISO() });
+  if (DB.trash.length > 200) DB.trash.length = 200;
+  save();
+}
+
+function restoreFromTrash(trashId){
+  const idx = DB.trash.findIndex(t => t.id === trashId);
+  if (idx === -1) return;
+  const [entry] = DB.trash.splice(idx, 1);
+  DB[entry.collection] = DB[entry.collection] || [];
+  DB[entry.collection].push(entry.item);
+  save();
+  renderTrashModal();
+}
+
+function permanentlyDelete(trashId){
+  if (!confirm('Permanently delete this? This cannot be undone.')) return;
+  DB.trash = DB.trash.filter(t => t.id !== trashId);
+  save();
+  renderTrashModal();
+}
+
+function openTrashModal(){
+  renderTrashModal();
+  openModalEl('trash-modal');
+}
+
+function renderTrashModal(){
+  const items = [...(DB.trash||[])].sort((a,b) => b.deletedAt.localeCompare(a.deletedAt));
+  document.getElementById('trash-list').innerHTML = items.length ? items.map(t => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <span class="pill" style="background:var(--border);color:var(--text-secondary);font-size:10px;">${escapeHtml(TRASH_LABELS[t.collection]||t.collection)}</span>
+        <strong style="margin-left:6px;">${escapeHtml(t.label)}</strong>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:2px;">Deleted ${fmtDate(t.deletedAt)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-secondary btn-sm" onclick="restoreFromTrash('${t.id}')">Restore</button>
+        <button class="icon-btn" onclick="permanentlyDelete('${t.id}')">🗑️</button>
+      </div>
+    </div>`).join('') : `<div class="empty-state"><p>Nothing in here. Anything you delete shows up here first.</p></div>`;
+}
+
+function exportBackup(){
+  const snapshot = window.getDBSnapshot ? window.getDBSnapshot() : DB;
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pokemon-hub-backup-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 // ---------------------------------------------------------------
 // DASHBOARD
@@ -1359,9 +1442,9 @@ function saveSale(){
 }
 
 function deleteSale(id){
-  if (!confirm('Delete this sale?')) return;
-  DB.sales = DB.sales.filter(s => s.id !== id);
-  save();
+  if (!confirm('Delete this sale? (You can restore it from Recently Deleted.)')) return;
+  const s = DB.sales.find(x => x.id === id);
+  softDelete('sales', id, `${s.item} × ${s.qty} — ${fmtDate(s.date)}`);
 }
 
 // ---------------------------------------------------------------
@@ -1458,9 +1541,9 @@ function saveInventoryItem(){
 }
 
 function deleteInventoryItem(id){
-  if (!confirm('Delete this inventory item?')) return;
-  DB.inventory = DB.inventory.filter(i => i.id !== id);
-  save();
+  if (!confirm('Delete this inventory item? (You can restore it from Recently Deleted.)')) return;
+  const i = DB.inventory.find(x => x.id === id);
+  softDelete('inventory', id, `${i.name} (${i.qty} in stock)`);
 }
 
 // ---------------------------------------------------------------
@@ -1544,9 +1627,9 @@ function saveDeal(){
 }
 
 function deleteDeal(id){
-  if (!confirm('Delete this deal?')) return;
-  DB.deals = DB.deals.filter(d => d.id !== id);
-  save();
+  if (!confirm('Delete this deal? (You can restore it from Recently Deleted.)')) return;
+  const d = DB.deals.find(x => x.id === id);
+  softDelete('deals', id, `${d.item} — ${d.buyer}`);
 }
 
 function markDealPaid(id){
@@ -1662,9 +1745,9 @@ function saveChannel(){
 }
 
 function deleteChannel(id){
-  if (!confirm('Delete this channel? Past sales logged under it will keep showing its name, just no longer linked to an active account.')) return;
-  DB.channels = DB.channels.filter(c => c.id !== id);
-  save();
+  if (!confirm('Delete this channel? Past sales logged under it will keep showing its name, just no longer linked to an active account. (You can restore it from Recently Deleted.)')) return;
+  const c = DB.channels.find(x => x.id === id);
+  softDelete('channels', id, channelLabel(c));
 }
 
 // ---------------------------------------------------------------
@@ -1745,9 +1828,9 @@ function savePriceRef(){
 }
 
 function deletePriceRef(id){
-  if (!confirm('Delete this price reference?')) return;
-  DB.priceRefs = DB.priceRefs.filter(r => r.id !== id);
-  save();
+  if (!confirm('Delete this price reference? (You can restore it from Recently Deleted.)')) return;
+  const r = DB.priceRefs.find(x => x.id === id);
+  softDelete('priceRefs', id, r.name);
 }
 
 function openNoteModal(id){
@@ -1784,9 +1867,9 @@ function saveNote(){
 }
 
 function deleteNote(id){
-  if (!confirm('Delete this note?')) return;
-  DB.notes = DB.notes.filter(n => n.id !== id);
-  save();
+  if (!confirm('Delete this note? (You can restore it from Recently Deleted.)')) return;
+  const n = DB.notes.find(x => x.id === id);
+  softDelete('notes', id, n.title);
 }
 
 // ---------------------------------------------------------------
@@ -1866,9 +1949,9 @@ function savePocketEntry(){
 }
 
 function deletePocketEntry(id){
-  if (!confirm('Delete this transaction?')) return;
-  DB.pocketEntries = DB.pocketEntries.filter(e => e.id !== id);
-  save();
+  if (!confirm('Delete this transaction? (You can restore it from Recently Deleted.)')) return;
+  const e = DB.pocketEntries.find(x => x.id === id);
+  softDelete('pocketEntries', id, `${pocketEntryLabel(e)} — ${fmtMoney(e.amount)}`);
 }
 
 function openPocketOpeningModal(){
@@ -2460,9 +2543,9 @@ function saveEvent(){
 }
 
 function deleteEvent(id){
-  if (!confirm('Delete this event? If it repeats, this removes every future occurrence.')) return;
-  DB.events = DB.events.filter(ev => ev.id !== id);
-  save();
+  if (!confirm('Delete this event? If it repeats, this removes every future occurrence. (You can restore it from Recently Deleted.)')) return;
+  const ev = DB.events.find(x => x.id === id);
+  softDelete('events', id, ev.title);
 }
 
 // ---------------------------------------------------------------
@@ -2536,9 +2619,9 @@ function saveInvestment(){
 }
 
 function deleteInvestment(id){
-  if (!confirm('Delete this investment record?')) return;
-  DB.investments = DB.investments.filter(x => x.id !== id);
-  save();
+  if (!confirm('Delete this investment record? (You can restore it from Recently Deleted.)')) return;
+  const inv = DB.investments.find(x => x.id === id);
+  softDelete('investments', id, `${inv.name} — ${fmtMoney(inv.amount)}`);
 }
 
 function toggleInvestmentPaid(id){
@@ -2672,9 +2755,9 @@ function saveOrder(){
 }
 
 function deleteOrder(id){
-  if (!confirm('Delete this order?')) return;
-  DB.orders = DB.orders.filter(o => o.id !== id);
-  save();
+  if (!confirm('Delete this order? (You can restore it from Recently Deleted.)')) return;
+  const o = DB.orders.find(x => x.id === id);
+  softDelete('orders', id, `${orderDisplayName(o)} — ${o.supplier}`);
 }
 
 function openBalanceModal(){
