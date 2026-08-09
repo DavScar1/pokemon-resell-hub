@@ -2153,6 +2153,15 @@ function renderCashFlow(){
     // "Sold"/"Complete" (or partially sold while still Arrived): each linked sale gets its own
     // payment toggle, so you can mark individual buyers' payments as they come in.
     const linkedSales = orderLinkedSales(o);
+    // Revenue/profit this specific order has generated so far — every linked sale counts,
+    // paid or still awaiting payment, matching what the sold-quantity progress above already shows.
+    const orderRevenue = linkedSales.reduce((a,s) => a + saleRevenue(s), 0);
+    const orderProfit = linkedSales.reduce((a,s) => a + saleProfit(s), 0);
+    const revenueProfit = linkedSales.length ? `
+      <div style="display:flex;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <div><div style="font-size:11px;color:var(--text-muted);">Revenue</div><div style="font-size:15px;font-weight:700;font-family:var(--font-mono);">${fmtMoney(orderRevenue)}</div></div>
+        <div><div style="font-size:11px;color:var(--text-muted);">Profit</div><div style="font-size:15px;font-weight:700;font-family:var(--font-mono);color:${orderProfit>=0?'#16a34a':'#dc2626'};">${fmtMoney(orderProfit)}</div></div>
+      </div>` : '';
     const salesBreakdown = linkedSales.length ? `<div style="margin-top:${itemsBreakdown?0:10}px;">` + linkedSales.map(s => `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
         <span>${escapeHtml(s.item)} × ${s.qty} <span style="color:var(--text-muted);">— ${fmtMoney(saleRevenue(s))}</span></span>
@@ -2167,6 +2176,7 @@ function renderCashFlow(){
       </div>
       ${orderMiniPipeline(o, stage)}
       ${progress}
+      ${revenueProfit}
       ${action}
       ${itemsBreakdown}
       ${salesBreakdown}
