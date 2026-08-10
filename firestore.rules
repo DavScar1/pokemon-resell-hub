@@ -10,5 +10,15 @@ service cloud.firestore {
           'danielliu581@gmail.com'
         ];
     }
+
+    // Lightweight "who's online" heartbeats -- one doc per partner, keyed by email.
+    // Rules don't inherit from the parent match above, so this needs its own block.
+    match /workspaces/pokemon-business/presence/{email} {
+      allow read, write: if request.auth != null &&
+        request.auth.token.email in [
+          'davide.scaringella1@gmail.com',
+          'danielliu581@gmail.com'
+        ];
+    }
   }
 }

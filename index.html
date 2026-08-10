@@ -138,7 +138,8 @@ input,select,textarea{font-family:inherit;color-scheme:light;}
 
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
-@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}.grid-5{grid-template-columns:repeat(2,1fr);}}
 
 .stat-card{position:relative;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);overflow:hidden;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;}
 .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gradient);opacity:.7;}
@@ -275,6 +276,7 @@ table.tbl tr:hover{background:#f7f8fb;}
   .main{margin-left:0;padding:18px 16px 60px;max-width:100%;}
   .menu-toggle{display:flex;}
   .grid-4{grid-template-columns:repeat(2,1fr);}
+  .grid-5{grid-template-columns:repeat(2,1fr);}
   .grid-2{grid-template-columns:1fr;}
   .form-row{grid-template-columns:1fr;}
   .kpi-grid{grid-template-columns:1fr;}
@@ -345,6 +347,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="investors" onclick="showPage('investors')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Investors</button>
     <button class="nav-item" data-page="buyers" onclick="showPage('buyers')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Buyers</button>
     <div class="sidebar-footer">
+      <div id="presence-indicator" style="margin-bottom:6px;"></div>
       <div class="user-email" id="current-user-email"></div>
       <button onclick="exportBackup()">⬇ Export Backup</button>
       <button onclick="openTrashModal()">🗑 Recently Deleted</button>
@@ -389,11 +392,12 @@ table.tbl tr:hover{background:#f7f8fb;}
         </div>
         <button class="btn btn-primary" onclick="openSaleModal()">+ Log Sale</button>
       </div>
-      <div class="grid-4" style="margin-bottom:18px;">
+      <div class="grid-5" style="margin-bottom:18px;">
         <div class="stat-card"><div class="stat-value" id="sales-revenue">€0</div><div class="stat-label">Revenue</div><div class="stat-sub">All time</div></div>
         <div class="stat-card"><div class="stat-value" id="sales-cost">€0</div><div class="stat-label">Cost + Fees</div><div class="stat-sub">All time</div></div>
         <div class="stat-card"><div class="stat-value" id="sales-profit">€0</div><div class="stat-label">Profit</div><div class="stat-sub">All time</div></div>
         <div class="stat-card"><div class="stat-value" id="sales-count">0</div><div class="stat-label">Sales Logged</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-value" id="sales-refunded" style="color:#dc2626;">€0</div><div class="stat-label">Refunded</div><div class="stat-sub" id="sales-refunded-sub">All time</div></div>
       </div>
       <div class="card"><div id="sales-list"></div></div>
     </div>
@@ -744,6 +748,31 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('sale-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveSale()">Save Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- Refund modal -->
+<div class="modal-overlay" id="refund-modal">
+  <div class="modal">
+    <h3>Process Refund</h3>
+    <input type="hidden" id="refund-sale-id">
+    <div class="cf-card-sub" id="refund-sale-summary" style="margin-bottom:14px;"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Refund Amount (€)</label><input type="number" id="refund-amount" min="0" step="0.01" oninput="computeRefundPreview()"></div>
+      <div class="form-group"><label>Return Label Cost (€) <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="number" id="refund-shipping" min="0" step="0.01" value="0" oninput="computeRefundPreview()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input type="date" id="refund-date"></div>
+      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:11px;">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;text-transform:none;font-weight:600;color:var(--text);"><input type="checkbox" id="refund-restock" style="width:auto;">Add item back to Inventory</label>
+      </div>
+    </div>
+    <div class="form-group"><label>Reason / Notes <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><textarea id="refund-notes" rows="2" placeholder="Why it was returned"></textarea></div>
+    <div class="insight" id="refund-preview" style="margin-top:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('refund-modal')">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--red);" onclick="saveRefund()">Process Refund</button>
     </div>
   </div>
 </div>
@@ -1134,9 +1163,11 @@ function mondayOfWeek(dateStr){
 function num(v){ return Number(v) || 0; }
 function currentUserEmail(){ return (window._authEmail) || ''; }
 
-function saleProfit(s){ return (s.qty*s.price) - (s.qty*s.cost) - num(s.fee) - num(s.shipping); }
-function saleRevenue(s){ return s.qty*s.price; }
-function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping); }
+// A refund reduces revenue (money handed back) and adds an extra cost (the return label) —
+// baked in here so every page that already calls these three functions reflects it automatically.
+function saleRevenue(s){ return s.qty*s.price - (s.refunded ? num(s.refundAmount) : 0); }
+function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping) + (s.refunded ? num(s.refundShippingCost) : 0); }
+function saleProfit(s){ return saleRevenue(s) - (s.qty*s.cost) - num(s.fee) - num(s.shipping) - (s.refunded ? num(s.refundShippingCost) : 0); }
 function saleCashReceived(s){ return s.cashStatus !== 'pending'; }
 
 // All-time cash position ignoring any starting-balance baseline — used as the suggested
@@ -1189,6 +1220,15 @@ function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('open');
 }
+
+// Called by the Firebase module script whenever the set of other online partners changes.
+window.updatePresenceUI = function(others){
+  const el = document.getElementById('presence-indicator');
+  if (!el) return;
+  el.innerHTML = others.length
+    ? others.map(e => `<span class="pill pill-green" style="font-size:10px;margin-bottom:4px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;"></span>${escapeHtml(e.split('@')[0])} is here</span>`).join('<br>')
+    : '';
+};
 
 function renderCurrentPage(){
   populateInventoryDatalist();
@@ -1357,10 +1397,14 @@ function renderSales(){
   const revenue = DB.sales.reduce((a,s) => a + saleRevenue(s), 0);
   const cost = DB.sales.reduce((a,s) => a + saleCostTotal(s), 0);
   const profit = revenue - cost;
+  const refundedSales = DB.sales.filter(s => s.refunded);
+  const refundedTotal = refundedSales.reduce((a,s) => a + num(s.refundAmount) + num(s.refundShippingCost), 0);
   document.getElementById('sales-revenue').textContent = fmtMoney(revenue);
   document.getElementById('sales-cost').textContent = fmtMoney(cost);
   document.getElementById('sales-profit').textContent = fmtMoney(profit);
   document.getElementById('sales-count').textContent = DB.sales.length;
+  document.getElementById('sales-refunded').textContent = fmtMoney(refundedTotal);
+  document.getElementById('sales-refunded-sub').textContent = `${refundedSales.length} refund${refundedSales.length===1?'':'s'}`;
 
   const rows = [...DB.sales].sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('sales-list').innerHTML = rows.length ? `
@@ -1374,11 +1418,17 @@ function renderSales(){
         <td>${escapeHtml(s.platform)}</td>
         <td>${fmtMoney(saleRevenue(s))}</td>
         <td style="color:${saleProfit(s)>=0?'#16a34a':'#dc2626'};font-weight:700;">${fmtMoney(saleProfit(s))}</td>
-        <td>${saleCashReceived(s)
-          ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
-          : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}</td>
+        <td>
+          ${s.refunded ? `<span class="pill pill-red" title="${escapeHtml(s.refundNotes||'')}" style="margin-right:4px;">↩ Refunded</span>` : ''}
+          ${saleCashReceived(s)
+            ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
+            : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
+        </td>
         <td style="color:var(--text-muted);font-size:11px;">${escapeHtml((s.loggedBy||'').split('@')[0])}</td>
         <td><div class="row-actions">
+          ${s.refunded
+            ? `<button class="icon-btn" title="Undo refund" onclick="undoRefund('${s.id}')">↩️</button>`
+            : `<button class="icon-btn" title="Process a refund" onclick="openRefundModal('${s.id}')">💸</button>`}
           <button class="icon-btn" onclick="openSaleModal('${s.id}')">✏️</button>
           <button class="icon-btn" onclick="deleteSale('${s.id}')">🗑️</button>
         </div></td>
@@ -1534,6 +1584,59 @@ function deleteSale(id){
   if (!confirm('Delete this sale? (You can restore it from Recently Deleted.)')) return;
   const s = DB.sales.find(x => x.id === id);
   softDelete('sales', id, `${s.item} × ${s.qty} — ${fmtDate(s.date)}`);
+}
+
+function openRefundModal(id){
+  const s = DB.sales.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('refund-sale-id').value = id;
+  document.getElementById('refund-sale-summary').innerHTML = `<strong>${escapeHtml(s.item)}</strong> × ${s.qty} — sold ${fmtDate(s.date)} for ${fmtMoney(s.qty*s.price)}`;
+  document.getElementById('refund-amount').value = (s.qty*s.price).toFixed(2);
+  document.getElementById('refund-shipping').value = 0;
+  document.getElementById('refund-date').value = todayISO();
+  document.getElementById('refund-restock').checked = false;
+  document.getElementById('refund-notes').value = '';
+  computeRefundPreview();
+  openModalEl('refund-modal');
+}
+
+function computeRefundPreview(){
+  const amount = num(document.getElementById('refund-amount').value);
+  const shipping = num(document.getElementById('refund-shipping').value);
+  document.getElementById('refund-preview').innerHTML =
+    `Total cost of this refund: <strong style="color:#dc2626;">${fmtMoney(amount+shipping)}</strong> (${fmtMoney(amount)} refunded to buyer + ${fmtMoney(shipping)} return label)`;
+}
+
+function saveRefund(){
+  const id = document.getElementById('refund-sale-id').value;
+  const s = DB.sales.find(x => x.id === id);
+  if (!s) return;
+  const refundAmount = num(document.getElementById('refund-amount').value);
+  if (refundAmount <= 0) { alert('Refund amount must be greater than 0.'); return; }
+  const refundShippingCost = num(document.getElementById('refund-shipping').value);
+  s.refunded = true;
+  s.refundAmount = refundAmount;
+  s.refundShippingCost = refundShippingCost;
+  s.refundDate = document.getElementById('refund-date').value || todayISO();
+  s.refundNotes = document.getElementById('refund-notes').value.trim();
+  s.refundRestocked = document.getElementById('refund-restock').checked;
+  if (s.refundRestocked) {
+    const invItem = DB.inventory.find(i => i.name.toLowerCase() === s.item.toLowerCase());
+    if (invItem) invItem.qty += s.qty;
+    else DB.inventory.push({ id: uid(), name: s.item, category: s.category || 'Other', qty: s.qty, cost: s.cost, threshold: 0, supplier: '', notes: 'Restocked from a refund' });
+  }
+  logActivity(`Processed refund: ${s.item} × ${s.qty} — ${fmtMoney(refundAmount)} back to buyer${refundShippingCost ? ` + ${fmtMoney(refundShippingCost)} return label` : ''}`);
+  closeModal('refund-modal');
+  save();
+}
+
+function undoRefund(id){
+  const s = DB.sales.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm('Undo this refund? Revenue and profit will go back to normal. (Any inventory added back from restocking will NOT be automatically removed.)')) return;
+  s.refunded = false;
+  logActivity(`Undid refund: ${s.item} × ${s.qty}`);
+  save();
 }
 
 // ---------------------------------------------------------------
@@ -3388,7 +3491,7 @@ import {
   onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot
+  getFirestore, doc, getDoc, setDoc, onSnapshot, collection, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 // ============================================================
@@ -3414,6 +3517,35 @@ const db = getFirestore(app);
 let _unsubscribe = null;
 let _applyingRemote = false;
 let _syncTimer = null;
+let _presenceTimer = null;
+let _presenceUnsub = null;
+let _myPresenceRef = null;
+const PRESENCE_STALE_MS = 45000; // no heartbeat in 45s = treat as offline
+
+function startPresence(user) {
+  _myPresenceRef = doc(collection(db, 'workspaces', WORKSPACE_DOC, 'presence'), user.email);
+  const beat = () => setDoc(_myPresenceRef, { email: user.email, lastSeen: Date.now() }).catch(() => {});
+  beat();
+  _presenceTimer = setInterval(beat, 20000);
+  window.addEventListener('beforeunload', () => { if (_myPresenceRef) deleteDoc(_myPresenceRef).catch(() => {}); });
+
+  _presenceUnsub = onSnapshot(collection(db, 'workspaces', WORKSPACE_DOC, 'presence'), (snap) => {
+    const now = Date.now();
+    const others = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.email !== user.email && data.lastSeen && (now - data.lastSeen) < PRESENCE_STALE_MS) others.push(data.email);
+    });
+    if (window.updatePresenceUI) window.updatePresenceUI(others);
+  }, () => {}); // presence is a nice-to-have — ignore permission errors if the rule isn't deployed yet
+}
+
+function stopPresence() {
+  clearInterval(_presenceTimer);
+  _presenceTimer = null;
+  if (_presenceUnsub) { _presenceUnsub(); _presenceUnsub = null; }
+  if (_myPresenceRef) { deleteDoc(_myPresenceRef).catch(() => {}); _myPresenceRef = null; }
+}
 
 function setStatus(text) {
   const el = document.getElementById('sync-status');
@@ -3451,6 +3583,7 @@ window.authLogin = async function() {
 
 window.authLogout = async function() {
   if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+  stopPresence();
   await signOut(auth);
   location.reload();
 };
@@ -3466,6 +3599,7 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById('app').style.display = 'flex';
   document.getElementById('current-user-email').textContent = user.email;
   setStatus('Syncing…');
+  startPresence(user);
 
   const ref = doc(db, 'workspaces', WORKSPACE_DOC);
   try {
