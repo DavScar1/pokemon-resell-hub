@@ -1636,8 +1636,15 @@ function saveRefund(){
   if (nowRestocked !== wasRestocked) {
     const invItem = DB.inventory.find(i => i.name.toLowerCase() === s.item.toLowerCase());
     if (nowRestocked) {
-      if (invItem) invItem.qty += s.qty;
-      else DB.inventory.push({ id: uid(), name: s.item, category: s.category || 'Other', qty: s.qty, cost: s.cost, threshold: 0, supplier: '', notes: 'Restocked from a refund' });
+      if (invItem) {
+        // Weighted average, not a flat qty bump -- the returned box may have cost something
+        // different than whatever's already sitting in this inventory row.
+        const totalQty = invItem.qty + s.qty;
+        invItem.cost = totalQty > 0 ? ((invItem.qty * invItem.cost) + (s.qty * s.cost)) / totalQty : s.cost;
+        invItem.qty = totalQty;
+      } else {
+        DB.inventory.push({ id: uid(), name: s.item, category: s.category || 'Other', qty: s.qty, cost: s.cost, threshold: 0, supplier: '', notes: 'Restocked from a refund' });
+      }
     } else if (invItem) {
       invItem.qty = Math.max(0, invItem.qty - s.qty);
     }
