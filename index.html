@@ -705,10 +705,10 @@ table.tbl tr:hover{background:#f7f8fb;}
   <div class="modal">
     <h3 id="sale-modal-title">Log Sale</h3>
     <input type="hidden" id="sale-edit-id">
-    <input type="hidden" id="sale-order-id">
-    <input type="hidden" id="sale-order-item-id">
     <input type="hidden" id="sale-deal-id">
-    <div id="sale-order-banner" style="display:none;font-size:12px;color:var(--primary);background:var(--primary-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;"></div>
+    <div class="form-group"><label>Linked Supplier Order <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label>
+      <select id="sale-order-link"></select>
+    </div>
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="sale-date"></div>
       <div class="form-group"><label>Platform</label>
@@ -1436,17 +1436,27 @@ function renderSales(){
     </tbody></table>` : `<div class="empty-state"><p>No sales logged yet. Click "+ Log Sale" to add one.</p></div>`;
 }
 
+// Options are keyed "orderId::itemId" so the sale modal's dropdown captures both which order
+// and which specific line item in one selection.
+function populateSaleOrderLinkSelect(currentOrderId, currentOrderItemId){
+  const sel = document.getElementById('sale-order-link');
+  const options = ['<option value="">— Not linked to a supplier order —</option>'];
+  [...DB.orders].filter(o => o.status !== 'Cancelled').sort((a,b) => b.date.localeCompare(a.date)).forEach(o => {
+    orderItems(o).forEach(it => {
+      const remaining = it.qty - orderItemSoldQty(o, it);
+      options.push(`<option value="${o.id}::${it.id}">${escapeHtml(orderDisplayName(o))} — ${escapeHtml(it.item)} (${remaining}/${it.qty} left)</option>`);
+    });
+  });
+  sel.innerHTML = options.join('');
+  sel.value = (currentOrderId && currentOrderItemId) ? `${currentOrderId}::${currentOrderItemId}` : '';
+}
+
 function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
   document.getElementById('sale-edit-id').value = id || '';
   document.getElementById('sale-modal-title').textContent = id ? 'Edit Sale' : 'Log Sale';
-  const banner = document.getElementById('sale-order-banner');
-  banner.style.display = 'none';
   document.getElementById('sale-deal-id').value = '';
-  document.getElementById('sale-order-item-id').value = '';
   if (id) {
     const s = DB.sales.find(x => x.id === id);
-    document.getElementById('sale-order-id').value = s.orderId || '';
-    document.getElementById('sale-order-item-id').value = s.orderItemId || '';
     document.getElementById('sale-date').value = s.date;
     populatePlatformSelect('sale-platform', s.platform);
     document.getElementById('sale-item').value = s.item;
@@ -1458,12 +1468,8 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-fee').value = s.fee;
     document.getElementById('sale-shipping').value = s.shipping;
     document.getElementById('sale-notes').value = s.notes || '';
-    if (s.orderId) {
-      const o = DB.orders.find(x => x.id === s.orderId);
-      if (o) { banner.textContent = `Linked to order: ${orderDisplayName(o)} (${o.supplier})`; banner.style.display = ''; }
-    }
+    populateSaleOrderLinkSelect(s.orderId, s.orderItemId);
   } else {
-    document.getElementById('sale-order-id').value = orderId || '';
     document.getElementById('sale-date').value = todayISO();
     populatePlatformSelect('sale-platform', '');
     document.getElementById('sale-item').value = prefillItem || '';
@@ -1480,12 +1486,12 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
       const o = DB.orders.find(x => x.id === orderId);
       const item = o && (orderItems(o).find(it => it.id === orderItemId) || orderItems(o)[0]);
       if (o && item) {
-        document.getElementById('sale-order-item-id').value = item.id;
         const remaining = item.qty - orderItemSoldQty(o, item);
         document.getElementById('sale-qty').value = Math.max(1, remaining);
-        banner.textContent = `Selling from order: ${orderDisplayName(o)} (${o.supplier}) — ${remaining} of ${item.qty} left`;
-        banner.style.display = '';
       }
+      populateSaleOrderLinkSelect(orderId, item ? item.id : orderItemId);
+    } else {
+      populateSaleOrderLinkSelect();
     }
   }
   computeSalePreview();
@@ -1516,8 +1522,7 @@ function computeSalePreview(){
 
 function saveSale(){
   const id = document.getElementById('sale-edit-id').value;
-  const orderId = document.getElementById('sale-order-id').value;
-  const orderItemId = document.getElementById('sale-order-item-id').value;
+  const [orderId, orderItemId] = document.getElementById('sale-order-link').value.split('::');
   const dealId = document.getElementById('sale-deal-id').value;
   const item = document.getElementById('sale-item').value.trim();
   if (!item) { alert('Please enter an item name.'); return; }
