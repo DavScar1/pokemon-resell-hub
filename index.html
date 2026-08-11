@@ -721,6 +721,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="form-group"><label>Item</label>
       <input type="text" id="sale-item" list="inventory-names" placeholder="e.g. Scarlet & Violet Booster Box" oninput="syncSaleItemFromInventory()">
       <datalist id="inventory-names"></datalist>
+      <div id="sale-item-warning" style="display:none;color:#dc2626;font-size:11.5px;margin-top:5px;"></div>
     </div>
     <div class="form-group"><label>Buyer <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label>
       <input type="text" id="sale-buyer" list="buyer-names" placeholder="e.g. John, @username">
@@ -1469,6 +1470,8 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-shipping').value = s.shipping;
     document.getElementById('sale-notes').value = s.notes || '';
     populateSaleOrderLinkSelect(s.orderId, s.orderItemId);
+    updateSaleItemWarning(s.item);
+    computeSalePreview();
   } else {
     document.getElementById('sale-date').value = todayISO();
     populatePlatformSelect('sale-platform', '');
@@ -1481,7 +1484,6 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-fee').value = 0;
     document.getElementById('sale-shipping').value = 0;
     document.getElementById('sale-notes').value = '';
-    if (prefillItem) syncSaleItemFromInventory();
     if (orderId) {
       const o = DB.orders.find(x => x.id === orderId);
       const item = o && (orderItems(o).find(it => it.id === orderItemId) || orderItems(o)[0]);
@@ -1493,18 +1495,30 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     } else {
       populateSaleOrderLinkSelect();
     }
+    syncSaleItemFromInventory();
   }
-  computeSalePreview();
   openModalEl('sale-modal');
 }
 
+// Shows a warning when the item name won't match any Inventory row -- saving would otherwise
+// silently skip deducting stock, with no error to notice it by.
+function updateSaleItemWarning(name){
+  name = (name || '').trim();
+  const warning = document.getElementById('sale-item-warning');
+  const hasMatch = !!DB.inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+  if (hasMatch || !name) { warning.style.display = 'none'; return; }
+  warning.textContent = `⚠ No Inventory item named exactly "${name}" — stock won't be deducted automatically.`;
+  warning.style.display = '';
+}
+
 function syncSaleItemFromInventory(){
-  const name = document.getElementById('sale-item').value;
+  const name = document.getElementById('sale-item').value.trim();
   const item = DB.inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
   if (item) {
     document.getElementById('sale-category').value = item.category;
     if (!document.getElementById('sale-cost').value) document.getElementById('sale-cost').value = item.cost;
   }
+  updateSaleItemWarning(name);
   computeSalePreview();
 }
 
