@@ -214,6 +214,27 @@ table.tbl tr:hover{background:#f7f8fb;}
 .evt-upcoming-date .d{font-size:17px;font-weight:800;color:var(--accent2);line-height:1;}
 .evt-upcoming-date .m{font-size:10px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
 
+/* ---------- To-Do (Kanban) ---------- */
+.task-progress-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;}
+.task-progress-bar{height:8px;background:#eef0f4;border-radius:99px;overflow:hidden;margin-top:10px;}
+.task-progress-fill{height:100%;background:var(--gradient);border-radius:99px;transition:width .3s ease;}
+.kanban-board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start;}
+.kanban-col{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;min-height:160px;}
+.kanban-col-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:11px;border-bottom:2px solid var(--border);}
+.kanban-col-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);}
+.kanban-count{background:var(--card-bg);border:1px solid var(--border);color:var(--text-secondary);font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;}
+.task-card{background:var(--card-bg);border:1px solid var(--border);border-radius:11px;padding:12px 13px;margin-bottom:10px;transition:box-shadow .15s,border-color .15s;}
+.task-card:hover{box-shadow:0 4px 14px rgba(23,26,38,.08);border-color:var(--border-strong);}
+.task-card.suggested{border-style:dashed;background:#fafbfd;}
+.task-card.done{opacity:.72;}
+.task-card.done .task-card-title{text-decoration:line-through;color:var(--text-muted);}
+.task-card-title{font-weight:700;font-size:13px;line-height:1.4;}
+.task-card-meta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;}
+.task-card-due{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);}
+.task-card-due.overdue{color:var(--red);font-weight:700;}
+.task-card-actions{display:flex;gap:5px;margin-top:10px;}
+@media(max-width:900px){.kanban-board{grid-template-columns:1fr;}}
+
 /* ---------- Misc ---------- */
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
 .an-section-title{font-size:14px;font-weight:700;margin-bottom:12px;}
@@ -346,6 +367,7 @@ table.tbl tr:hover{background:#f7f8fb;}
     <button class="nav-item" data-page="events" onclick="showPage('events')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2m4 0h2M8 18h2"/></svg>Events</button>
     <button class="nav-item" data-page="investors" onclick="showPage('investors')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Investors</button>
     <button class="nav-item" data-page="buyers" onclick="showPage('buyers')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Buyers</button>
+    <button class="nav-item" data-page="tasks" onclick="showPage('tasks')"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>To-Do</button>
     <div class="sidebar-footer">
       <div id="presence-indicator" style="margin-bottom:6px;"></div>
       <div class="user-email" id="current-user-email"></div>
@@ -692,6 +714,40 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="kpi-grid" id="buyer-kpi-grid" style="margin-bottom:20px;"></div>
 
       <div class="cf-cards-grid" id="buyer-list"></div>
+    </div>
+
+    <!-- ---------------- To-Do ---------------- -->
+    <div class="page" id="page-tasks">
+      <div class="section-header" style="margin-bottom:18px;">
+        <div>
+          <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>To-Do</h2>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Your board, plus smart suggestions pulled from low stock, open deals and unpaid investors.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openTaskModal()">+ Add Task</button>
+      </div>
+
+      <div class="task-progress-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div style="font-size:13px;font-weight:700;" id="task-progress-label">0 of 0 done</div>
+          <div style="font-size:12px;color:var(--text-muted);" id="task-progress-pct">0%</div>
+        </div>
+        <div class="task-progress-bar"><div class="task-progress-fill" id="task-progress-fill" style="width:0%;"></div></div>
+      </div>
+
+      <div class="kanban-board">
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span class="kanban-col-title">🗓️ To Do</span><span class="kanban-count" id="task-count-todo">0</span></div>
+          <div id="task-col-todo"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span class="kanban-col-title">⚡ In Progress</span><span class="kanban-count" id="task-count-inprogress">0</span></div>
+          <div id="task-col-inprogress"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span class="kanban-col-title">✅ Done</span><span class="kanban-count" id="task-count-done">0</span></div>
+          <div id="task-col-done"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1077,6 +1133,26 @@ table.tbl tr:hover{background:#f7f8fb;}
   </div>
 </div>
 
+<!-- Task modal -->
+<div class="modal-overlay" id="task-modal">
+  <div class="modal">
+    <h3 id="task-modal-title">Add Task</h3>
+    <input type="hidden" id="task-edit-id">
+    <div class="form-group"><label>Title</label><input type="text" id="task-title" placeholder="e.g. Ship Mega Dream box to Sam"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label>
+        <select id="task-category"><option>Restock</option><option>Shipping</option><option>Admin</option><option>Follow-up</option></select>
+      </div>
+      <div class="form-group"><label>Due Date <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label><input type="date" id="task-due"></div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="task-notes" rows="2" placeholder="Anything else worth noting"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
 <!-- Trash modal -->
 <div class="modal-overlay" id="trash-modal">
   <div class="modal" style="max-width:560px;">
@@ -1121,7 +1197,7 @@ let cfShowCompleted = false;
 function defaultDB(){
   return { sales: [], inventory: [], orders: [], deals: [], channels: [], priceRefs: [], notes: [],
     pocket: { openingDav: 0, openingDan: 0, openingDate: null }, pocketEntries: [],
-    taxRate: 0.20, taxAccountBalance: 0, events: [], investments: [], buyers: [], trash: [], activityLog: [],
+    taxRate: 0.20, taxAccountBalance: 0, events: [], investments: [], buyers: [], tasks: [], dismissedSuggestions: [], trash: [], activityLog: [],
     balanceBaseline: null, balanceBaselineDate: null };
 }
 
@@ -1248,6 +1324,7 @@ function renderCurrentPage(){
   else if (currentPage === 'events') renderEventsPage();
   else if (currentPage === 'investors') renderInvestorsPage();
   else if (currentPage === 'buyers') renderBuyersPage();
+  else if (currentPage === 'tasks') renderTasksPage();
 }
 
 function populateInventoryDatalist(){
@@ -1271,7 +1348,7 @@ function logActivity(action){
 // ---------------------------------------------------------------
 const TRASH_LABELS = { sales:'Sale', inventory:'Inventory', deals:'Deal', channels:'Channel',
   priceRefs:'Price Ref', notes:'Note', pocketEntries:'Pocket', events:'Event',
-  investments:'Investment', orders:'Order', buyers:'Buyer' };
+  investments:'Investment', orders:'Order', buyers:'Buyer', tasks:'Task' };
 
 function softDelete(collection, id, label){
   const idx = DB[collection].findIndex(x => x.id === id);
@@ -3044,6 +3121,176 @@ function deleteBuyer(id){
   if (!confirm('Delete this buyer profile? (You can restore it from Recently Deleted. Past sales keep showing the name, just without contact/notes.)')) return;
   const b = DB.buyers.find(x => x.id === id);
   softDelete('buyers', id, b.name);
+}
+
+// ---------------------------------------------------------------
+// TO-DO  (Kanban board + suggestions pulled live from other pages)
+// ---------------------------------------------------------------
+const TASK_CATEGORY_META = {
+  Restock:     {bg:'var(--blue-light)',    color:'var(--blue)'},
+  Shipping:    {bg:'var(--green-light)',   color:'var(--green)'},
+  Admin:       {bg:'rgba(124,58,237,.12)', color:'var(--accent2)'},
+  'Follow-up': {bg:'var(--yellow-light)',  color:'var(--yellow)'},
+};
+
+// Live-computed, never stored -- "Add to board" turns one into a real task and dismisses it
+// from resurfacing; otherwise it just stops appearing on its own once the underlying thing
+// (restocked, deal closed, investor paid) resolves.
+function generateTaskSuggestions(){
+  const suggestions = [];
+  const dismissed = new Set(DB.dismissedSuggestions || []);
+
+  DB.inventory.filter(i => i.qty <= i.threshold).forEach(i => {
+    const key = `stock-${i.id}`;
+    if (dismissed.has(key)) return;
+    suggestions.push({ key, title: i.qty===0 ? `Restock ${i.name} — out of stock` : `Restock ${i.name} — ${i.qty} left`, category: 'Restock' });
+  });
+
+  DB.deals.forEach(d => {
+    const key = `deal-${d.id}`;
+    if (dismissed.has(key)) return;
+    suggestions.push({ key, title: `Follow up with ${d.buyer} — ${d.item} (${d.status})`, category: 'Follow-up' });
+  });
+
+  DB.investments.filter(inv => inv.status !== 'Paid').forEach(inv => {
+    const key = `investment-${inv.id}`;
+    if (dismissed.has(key)) return;
+    const payout = investmentPayout(inv);
+    suggestions.push({ key, title: `Settle up with ${inv.name} — ${fmtMoney(payout.totalOwed)} owed`, category: 'Admin' });
+  });
+
+  return suggestions;
+}
+
+function addSuggestionAsTask(key){
+  const s = generateTaskSuggestions().find(x => x.key === key);
+  if (!s) return;
+  DB.tasks.push({ id: uid(), title: s.title, category: s.category, status: 'todo', dueDate: '', notes: 'Auto-suggested', createdAt: todayISO() });
+  DB.dismissedSuggestions = DB.dismissedSuggestions || [];
+  DB.dismissedSuggestions.push(key);
+  logActivity(`Added task: ${s.title}`);
+  save();
+}
+
+function dismissSuggestion(key){
+  DB.dismissedSuggestions = DB.dismissedSuggestions || [];
+  DB.dismissedSuggestions.push(key);
+  save();
+}
+
+function openTaskModal(id){
+  document.getElementById('task-edit-id').value = id || '';
+  document.getElementById('task-modal-title').textContent = id ? 'Edit Task' : 'Add Task';
+  if (id) {
+    const t = DB.tasks.find(x => x.id === id);
+    document.getElementById('task-title').value = t.title;
+    document.getElementById('task-category').value = t.category;
+    document.getElementById('task-due').value = t.dueDate || '';
+    document.getElementById('task-notes').value = t.notes || '';
+  } else {
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-category').value = 'Restock';
+    document.getElementById('task-due').value = '';
+    document.getElementById('task-notes').value = '';
+  }
+  openModalEl('task-modal');
+}
+
+function saveTask(){
+  const id = document.getElementById('task-edit-id').value;
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { alert('Please enter a title.'); return; }
+  const data = {
+    title,
+    category: document.getElementById('task-category').value,
+    dueDate: document.getElementById('task-due').value,
+    notes: document.getElementById('task-notes').value.trim(),
+  };
+  if (id) {
+    Object.assign(DB.tasks.find(x => x.id === id), data);
+    logActivity(`Edited task: ${title}`);
+  } else {
+    data.id = uid();
+    data.status = 'todo';
+    data.createdAt = todayISO();
+    DB.tasks.push(data);
+    logActivity(`Added task: ${title}`);
+  }
+  closeModal('task-modal');
+  save();
+}
+
+function deleteTask(id){
+  if (!confirm('Delete this task? (You can restore it from Recently Deleted.)')) return;
+  const t = DB.tasks.find(x => x.id === id);
+  softDelete('tasks', id, t.title);
+}
+
+function moveTask(id, newStatus){
+  const t = DB.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.status = newStatus;
+  const label = newStatus === 'todo' ? 'To Do' : newStatus === 'inprogress' ? 'In Progress' : 'Done';
+  logActivity(`Moved task to ${label}: ${t.title}`);
+  save();
+}
+
+function taskCardHTML(t){
+  const meta = TASK_CATEGORY_META[t.category] || TASK_CATEGORY_META.Admin;
+  const overdue = t.dueDate && t.dueDate < todayISO() && t.status !== 'done';
+  let actions = '';
+  if (t.status === 'todo') actions = `<button class="btn btn-secondary btn-sm" style="flex:1;" onclick="moveTask('${t.id}','inprogress')">Start →</button>`;
+  else if (t.status === 'inprogress') actions = `<button class="btn btn-secondary btn-sm" onclick="moveTask('${t.id}','todo')">← Back</button><button class="btn btn-primary btn-sm" style="flex:1;" onclick="moveTask('${t.id}','done')">Complete ✓</button>`;
+  else actions = `<button class="btn btn-secondary btn-sm" style="flex:1;" onclick="moveTask('${t.id}','inprogress')">↺ Reopen</button>`;
+  return `<div class="task-card ${t.status==='done'?'done':''}">
+    <div class="task-card-title">${escapeHtml(t.title)}</div>
+    <div class="task-card-meta">
+      <span class="pill" style="background:${meta.bg};color:${meta.color};font-size:10px;">${escapeHtml(t.category)}</span>
+      ${t.dueDate ? `<span class="task-card-due ${overdue?'overdue':''}">${overdue?'⚠ ':''}${fmtDate(t.dueDate)}</span>` : ''}
+    </div>
+    ${t.notes ? `<div class="cf-card-sub" style="margin-top:6px;">${escapeHtml(t.notes)}</div>` : ''}
+    <div class="task-card-actions">
+      ${actions}
+      <button class="icon-btn" onclick="openTaskModal('${t.id}')">✏️</button>
+      <button class="icon-btn" onclick="deleteTask('${t.id}')">🗑️</button>
+    </div>
+  </div>`;
+}
+
+function suggestionCardHTML(s){
+  const meta = TASK_CATEGORY_META[s.category] || TASK_CATEGORY_META.Admin;
+  return `<div class="task-card suggested">
+    <div class="task-card-title">${escapeHtml(s.title)}</div>
+    <div class="task-card-meta">
+      <span class="pill" style="background:${meta.bg};color:${meta.color};font-size:10px;">${escapeHtml(s.category)}</span>
+      <span style="font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;">Suggested</span>
+    </div>
+    <div class="task-card-actions">
+      <button class="btn btn-primary btn-sm" style="flex:1;" onclick="addSuggestionAsTask('${s.key}')">+ Add to board</button>
+      <button class="icon-btn" title="Dismiss" onclick="dismissSuggestion('${s.key}')">✕</button>
+    </div>
+  </div>`;
+}
+
+function renderTasksPage(){
+  const suggestions = generateTaskSuggestions();
+  const todo = DB.tasks.filter(t => t.status === 'todo');
+  const inProgress = DB.tasks.filter(t => t.status === 'inprogress');
+  const done = DB.tasks.filter(t => t.status === 'done');
+
+  const totalActive = todo.length + inProgress.length + done.length;
+  const pct = totalActive ? Math.round(done.length/totalActive*100) : 0;
+  document.getElementById('task-progress-label').textContent = `${done.length} of ${totalActive} done`;
+  document.getElementById('task-progress-pct').textContent = `${pct}%`;
+  document.getElementById('task-progress-fill').style.width = `${pct}%`;
+
+  document.getElementById('task-count-todo').textContent = todo.length + suggestions.length;
+  document.getElementById('task-count-inprogress').textContent = inProgress.length;
+  document.getElementById('task-count-done').textContent = done.length;
+
+  document.getElementById('task-col-todo').innerHTML = (suggestions.map(suggestionCardHTML).join('') + todo.map(taskCardHTML).join('')) || `<div class="empty-state"><p>Nothing to do. 🎉</p></div>`;
+  document.getElementById('task-col-inprogress').innerHTML = inProgress.map(taskCardHTML).join('') || `<div class="empty-state"><p>Nothing in progress.</p></div>`;
+  document.getElementById('task-col-done').innerHTML = done.map(taskCardHTML).join('') || `<div class="empty-state"><p>Nothing done yet.</p></div>`;
 }
 
 let _orderItemsDraft = [];
