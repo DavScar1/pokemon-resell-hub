@@ -755,7 +755,7 @@ table.tbl tr:hover{background:#f7f8fb;}
 <!-- Refund modal -->
 <div class="modal-overlay" id="refund-modal">
   <div class="modal">
-    <h3>Process Refund</h3>
+    <h3 id="refund-modal-title">Process Refund</h3>
     <input type="hidden" id="refund-sale-id">
     <div class="cf-card-sub" id="refund-sale-summary" style="margin-bottom:14px;"></div>
     <div class="form-row">
@@ -1419,7 +1419,7 @@ function renderSales(){
         <td>${fmtMoney(saleRevenue(s))}</td>
         <td style="color:${saleProfit(s)>=0?'#16a34a':'#dc2626'};font-weight:700;">${fmtMoney(saleProfit(s))}</td>
         <td>
-          ${s.refunded ? `<span class="pill pill-red" title="${escapeHtml(s.refundNotes||'')}" style="margin-right:4px;">↩ Refunded</span>` : ''}
+          ${s.refunded ? `<button class="pill pill-red pay-pill" title="${escapeHtml(s.refundNotes||'Click to edit this refund')}" style="margin-right:4px;" onclick="openRefundModal('${s.id}')">↩ Refunded</button>` : ''}
           ${saleCashReceived(s)
             ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
             : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
@@ -1594,13 +1594,14 @@ function deleteSale(id){
 function openRefundModal(id){
   const s = DB.sales.find(x => x.id === id);
   if (!s) return;
+  document.getElementById('refund-modal-title').textContent = s.refunded ? 'Edit Refund' : 'Process Refund';
   document.getElementById('refund-sale-id').value = id;
   document.getElementById('refund-sale-summary').innerHTML = `<strong>${escapeHtml(s.item)}</strong> × ${s.qty} — sold ${fmtDate(s.date)} for ${fmtMoney(s.qty*s.price)}`;
-  document.getElementById('refund-amount').value = (s.qty*s.price).toFixed(2);
-  document.getElementById('refund-shipping').value = 0;
-  document.getElementById('refund-date').value = todayISO();
-  document.getElementById('refund-restock').checked = false;
-  document.getElementById('refund-notes').value = '';
+  document.getElementById('refund-amount').value = (s.refunded ? s.refundAmount : s.qty*s.price).toFixed(2);
+  document.getElementById('refund-shipping').value = s.refunded ? (s.refundShippingCost || 0) : 0;
+  document.getElementById('refund-date').value = s.refunded ? s.refundDate : todayISO();
+  document.getElementById('refund-restock').checked = s.refunded ? !!s.refundRestocked : false;
+  document.getElementById('refund-notes').value = s.refunded ? (s.refundNotes || '') : '';
   computeRefundPreview();
   openModalEl('refund-modal');
 }
@@ -1619,18 +1620,30 @@ function saveRefund(){
   const refundAmount = num(document.getElementById('refund-amount').value);
   if (refundAmount <= 0) { alert('Refund amount must be greater than 0.'); return; }
   const refundShippingCost = num(document.getElementById('refund-shipping').value);
+  const isEdit = !!s.refunded;
+  const wasRestocked = !!s.refundRestocked;
+  const nowRestocked = document.getElementById('refund-restock').checked;
+
   s.refunded = true;
   s.refundAmount = refundAmount;
   s.refundShippingCost = refundShippingCost;
   s.refundDate = document.getElementById('refund-date').value || todayISO();
   s.refundNotes = document.getElementById('refund-notes').value.trim();
-  s.refundRestocked = document.getElementById('refund-restock').checked;
-  if (s.refundRestocked) {
+  s.refundRestocked = nowRestocked;
+
+  // Only touch Inventory if the restock checkbox actually changed -- covers both "forgot to
+  // check it the first time" (now ticking it) and "changed my mind" (now unticking it).
+  if (nowRestocked !== wasRestocked) {
     const invItem = DB.inventory.find(i => i.name.toLowerCase() === s.item.toLowerCase());
-    if (invItem) invItem.qty += s.qty;
-    else DB.inventory.push({ id: uid(), name: s.item, category: s.category || 'Other', qty: s.qty, cost: s.cost, threshold: 0, supplier: '', notes: 'Restocked from a refund' });
+    if (nowRestocked) {
+      if (invItem) invItem.qty += s.qty;
+      else DB.inventory.push({ id: uid(), name: s.item, category: s.category || 'Other', qty: s.qty, cost: s.cost, threshold: 0, supplier: '', notes: 'Restocked from a refund' });
+    } else if (invItem) {
+      invItem.qty = Math.max(0, invItem.qty - s.qty);
+    }
   }
-  logActivity(`Processed refund: ${s.item} × ${s.qty} — ${fmtMoney(refundAmount)} back to buyer${refundShippingCost ? ` + ${fmtMoney(refundShippingCost)} return label` : ''}`);
+
+  logActivity(`${isEdit ? 'Edited' : 'Processed'} refund: ${s.item} × ${s.qty} — ${fmtMoney(refundAmount)} back to buyer${refundShippingCost ? ` + ${fmtMoney(refundShippingCost)} return label` : ''}`);
   closeModal('refund-modal');
   save();
 }
@@ -2500,7 +2513,7 @@ function renderCashFlow(){
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
         <span>${escapeHtml(s.item)} × ${s.qty} <span style="color:var(--text-muted);">— ${fmtMoney(saleRevenue(s))}</span></span>
         <span>
-          ${s.refunded ? `<span class="pill pill-red" style="margin-right:4px;">↩ Refunded</span>` : ''}
+          ${s.refunded ? `<button class="pill pill-red pay-pill" title="Click to edit this refund" style="margin-right:4px;" onclick="openRefundModal('${s.id}')">↩ Refunded</button>` : ''}
           ${saleCashReceived(s)
             ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
             : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
@@ -3081,8 +3094,28 @@ function saveOrder(){
   if (id) {
     const existing = DB.orders.find(x => x.id === id);
     const existingItems = orderItems(existing);
+    const wasArrived = existing.status === 'Arrived';
     // Preserve existing line-item ids by position so already-linked sales stay matched.
     data.items = items.map((it, i) => ({ id: existingItems[i] ? existingItems[i].id : uid(), ...it }));
+
+    // Editing an order that's already Arrived (new products added, or a quantity bumped up)
+    // doesn't get a second trip through "Mark Arrived" -- sync just the difference into
+    // Inventory here so nothing silently gets left out.
+    if (data.status === 'Arrived') {
+      data.items.forEach((newIt, i) => {
+        const oldIt = wasArrived ? existingItems[i] : null;
+        const delta = newIt.qty - (oldIt ? oldIt.qty : 0);
+        if (delta === 0) return;
+        const invItem = DB.inventory.find(inv => inv.name.toLowerCase() === newIt.item.toLowerCase());
+        if (invItem) {
+          invItem.qty = Math.max(0, invItem.qty + delta);
+          invItem.cost = newIt.cost;
+        } else if (delta > 0) {
+          DB.inventory.push({ id: uid(), name: newIt.item, category: 'Other', qty: delta, cost: newIt.cost, threshold: 0, supplier: data.supplier, notes: '' });
+        }
+      });
+    }
+
     Object.assign(existing, data);
     logActivity(`Edited order: ${orderDisplayName(data)} — ${supplier}`);
   } else {
