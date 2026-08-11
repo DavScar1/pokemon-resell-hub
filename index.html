@@ -2499,9 +2499,12 @@ function renderCashFlow(){
     const salesBreakdown = linkedSales.length ? `<div style="margin-top:${itemsBreakdown?0:10}px;">` + linkedSales.map(s => `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
         <span>${escapeHtml(s.item)} × ${s.qty} <span style="color:var(--text-muted);">— ${fmtMoney(saleRevenue(s))}</span></span>
-        ${saleCashReceived(s)
-          ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
-          : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
+        <span>
+          ${s.refunded ? `<span class="pill pill-red" style="margin-right:4px;">↩ Refunded</span>` : ''}
+          ${saleCashReceived(s)
+            ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
+            : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
+        </span>
       </div>`).join('') + `</div>` : '';
     return `<div class="cf-card">
       <div class="cf-card-top">
@@ -3175,7 +3178,10 @@ function saleMatchesOrderItem(s, order, item){
 }
 
 function orderItemSoldQty(order, item){
-  return DB.sales.filter(s => saleMatchesOrderItem(s, order, item)).reduce((a,s) => a+s.qty, 0);
+  // A refunded-and-restocked sale isn't really "sold" anymore -- the box is back in inventory
+  // and available to sell again, so it shouldn't hold this order's remaining count down.
+  return DB.sales.filter(s => saleMatchesOrderItem(s, order, item) && !(s.refunded && s.refundRestocked))
+    .reduce((a,s) => a+s.qty, 0);
 }
 
 function orderTotalSoldQty(o){
