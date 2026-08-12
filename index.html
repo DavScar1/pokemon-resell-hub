@@ -764,7 +764,7 @@ table.tbl tr:hover{background:#f7f8fb;}
         <div class="form-group"><label>Amount Received (€)</label><input type="number" id="settle-received" min="0" step="0.01" placeholder="0.00" oninput="renderSettleUpPage()"></div>
         <div class="form-group"><label>Shipping Paid (€)</label><input type="number" id="settle-shipping" min="0" step="0.01" value="0" oninput="renderSettleUpPage()"></div>
         <div class="form-group"><label>Tax Rate (%)</label><input type="number" id="settle-tax-rate" min="0" step="0.1" oninput="renderSettleUpPage()"></div>
-        <div class="insight" id="settle-tax-computed" style="margin-top:2px;"></div>
+        <div class="insight-grid" id="settle-tax-computed" style="margin-top:2px;"></div>
       </div>
 
       <div class="card hud-panel" style="text-align:center;padding:32px 20px;">
@@ -3328,14 +3328,17 @@ function renderSettleUpPage(){
   const received = num(document.getElementById('settle-received').value);
   const shipping = num(document.getElementById('settle-shipping').value);
   const rate = num(rateEl.value);
-  const tax = Math.max(0, received - shipping) * (rate / 100);
+  const profit = Math.max(0, received - shipping);
+  const tax = profit * (rate / 100);
   const remaining = received - shipping - tax;
   const partnerShare = remaining / 2;
 
-  document.getElementById('settle-tax-computed').innerHTML = `Tax to set aside: <strong>${fmtMoney(tax)}</strong>`;
+  document.getElementById('settle-tax-computed').innerHTML =
+    `<div class="insight">Profit (before tax)<br><strong>${fmtMoney(profit)}</strong></div>
+     <div class="insight">Tax to set aside<br><strong>${fmtMoney(tax)}</strong></div>`;
   document.getElementById('settle-result').textContent = fmtMoney(partnerShare);
   document.getElementById('settle-detail').textContent =
-    `${fmtMoney(received)} received − ${fmtMoney(shipping)} shipping − ${fmtMoney(tax)} tax (${rate}%) = ${fmtMoney(remaining)}, split 50/50`;
+    `${fmtMoney(received)} received − ${fmtMoney(shipping)} shipping = ${fmtMoney(profit)} profit → ${fmtMoney(tax)} tax (${rate}%) → ${fmtMoney(remaining)}, split 50/50`;
 }
 
 let _orderItemsDraft = [];
