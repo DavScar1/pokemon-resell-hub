@@ -763,7 +763,8 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="card" style="max-width:480px;margin-bottom:20px;">
         <div class="form-group"><label>Amount Received (€)</label><input type="number" id="settle-received" min="0" step="0.01" placeholder="0.00" oninput="renderSettleUpPage()"></div>
         <div class="form-group"><label>Shipping Paid (€)</label><input type="number" id="settle-shipping" min="0" step="0.01" value="0" oninput="renderSettleUpPage()"></div>
-        <div class="form-group"><label>Tax to Set Aside (€)</label><input type="number" id="settle-tax" min="0" step="0.01" value="0" oninput="renderSettleUpPage()"></div>
+        <div class="form-group"><label>Tax Rate (%)</label><input type="number" id="settle-tax-rate" min="0" step="0.1" oninput="renderSettleUpPage()"></div>
+        <div class="insight" id="settle-tax-computed" style="margin-top:2px;"></div>
       </div>
 
       <div class="card hud-panel" style="text-align:center;padding:32px 20px;">
@@ -3321,15 +3322,20 @@ function renderTasksPage(){
 // SETTLE UP  (one-off manual calculator, nothing saved)
 // ---------------------------------------------------------------
 function renderSettleUpPage(){
+  const rateEl = document.getElementById('settle-tax-rate');
+  if (rateEl.value === '') rateEl.value = (taxRate() * 100).toFixed(1).replace(/\.0$/, '');
+
   const received = num(document.getElementById('settle-received').value);
   const shipping = num(document.getElementById('settle-shipping').value);
-  const tax = num(document.getElementById('settle-tax').value);
+  const rate = num(rateEl.value);
+  const tax = Math.max(0, received - shipping) * (rate / 100);
   const remaining = received - shipping - tax;
   const partnerShare = remaining / 2;
 
+  document.getElementById('settle-tax-computed').innerHTML = `Tax to set aside: <strong>${fmtMoney(tax)}</strong>`;
   document.getElementById('settle-result').textContent = fmtMoney(partnerShare);
   document.getElementById('settle-detail').textContent =
-    `${fmtMoney(received)} received − ${fmtMoney(shipping)} shipping − ${fmtMoney(tax)} tax = ${fmtMoney(remaining)}, split 50/50`;
+    `${fmtMoney(received)} received − ${fmtMoney(shipping)} shipping − ${fmtMoney(tax)} tax (${rate}%) = ${fmtMoney(remaining)}, split 50/50`;
 }
 
 let _orderItemsDraft = [];
