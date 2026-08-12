@@ -756,36 +756,20 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="section-header" style="margin-bottom:18px;">
         <div>
           <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Settle Up</h2>
-          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">A one-off calculator — after-tax profit split 50/50, plus reimbursing whoever paid shipping out of pocket. Nothing here is saved.</p>
+          <p style="color:var(--text-secondary);margin-top:4px;font-size:13px;">Quick calculator: how much to send your partner from money you received. Nothing here is saved.</p>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:20px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-          <div class="an-section-title" style="margin:0;">📆 Period</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <input type="date" id="settle-range-start" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;background:var(--bg);" onchange="renderSettleUpPage()">
-            <span style="color:var(--text-muted);font-size:12px;">to</span>
-            <input type="date" id="settle-range-end" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;background:var(--bg);" onchange="renderSettleUpPage()">
-          </div>
-        </div>
-        <div class="grid-4" id="settle-stats"></div>
+      <div class="card" style="max-width:480px;margin-bottom:20px;">
+        <div class="form-group"><label>Amount Received (€)</label><input type="number" id="settle-received" min="0" step="0.01" placeholder="0.00" oninput="renderSettleUpPage()"></div>
+        <div class="form-group"><label>Shipping Paid (€)</label><input type="number" id="settle-shipping" min="0" step="0.01" value="0" oninput="renderSettleUpPage()"></div>
+        <div class="form-group"><label>Tax to Set Aside (€)</label><input type="number" id="settle-tax" min="0" step="0.01" value="0" oninput="renderSettleUpPage()"></div>
       </div>
 
-      <div class="card hud-panel" style="margin-bottom:20px;text-align:center;padding:32px 20px;">
-        <div class="hud-title" style="justify-content:center;">Suggested Transfer</div>
-        <div id="settle-headline" style="font-size:15px;color:#dbe3f5;"></div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <div class="an-section-title">Dav's Total</div>
-          <div id="settle-dav-breakdown"></div>
-        </div>
-        <div class="card">
-          <div class="an-section-title">Dan's Total</div>
-          <div id="settle-dan-breakdown"></div>
-        </div>
+      <div class="card hud-panel" style="text-align:center;padding:32px 20px;">
+        <div class="hud-title" style="justify-content:center;">Send Your Partner</div>
+        <div id="settle-result" style="font-size:40px;font-weight:800;font-family:var(--font-mono,monospace);color:#fff;margin-top:6px;"></div>
+        <div id="settle-detail" style="font-size:12px;color:#9fb0d4;margin-top:10px;"></div>
       </div>
     </div>
   </div>
@@ -838,9 +822,6 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="form-row">
       <div class="form-group"><label>Platform Fees (€)</label><input type="number" id="sale-fee" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
       <div class="form-group"><label>Shipping Cost (€)</label><input type="number" id="sale-shipping" min="0" step="0.01" value="0" oninput="computeSalePreview()"></div>
-    </div>
-    <div class="form-group"><label>Shipping Paid By</label>
-      <select id="sale-shipping-payer"><option>Shared</option><option>Dav</option><option>Dan</option></select>
     </div>
     <div class="form-group"><label>Notes</label><textarea id="sale-notes" rows="2" placeholder="Buyer, condition, etc."></textarea></div>
     <div class="insight" id="sale-preview" style="margin-top:4px;"></div>
@@ -1588,7 +1569,6 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-cost').value = s.cost;
     document.getElementById('sale-fee').value = s.fee;
     document.getElementById('sale-shipping').value = s.shipping;
-    document.getElementById('sale-shipping-payer').value = s.shippingPaidBy || 'Shared';
     document.getElementById('sale-notes').value = s.notes || '';
     populateSaleOrderLinkSelect(s.orderId, s.orderItemId);
     updateSaleItemWarning(s.item);
@@ -1604,7 +1584,6 @@ function openSaleModal(id, prefillItem, orderId, dealId, orderItemId){
     document.getElementById('sale-cost').value = '';
     document.getElementById('sale-fee').value = 0;
     document.getElementById('sale-shipping').value = 0;
-    document.getElementById('sale-shipping-payer').value = 'Shared';
     document.getElementById('sale-notes').value = '';
     if (orderId) {
       const o = DB.orders.find(x => x.id === orderId);
@@ -1684,7 +1663,6 @@ function saveSale(){
     cost: num(document.getElementById('sale-cost').value),
     fee: num(document.getElementById('sale-fee').value),
     shipping: num(document.getElementById('sale-shipping').value),
-    shippingPaidBy: document.getElementById('sale-shipping-payer').value,
     notes: document.getElementById('sale-notes').value.trim(),
     orderId: orderId || '',
     orderItemId: orderItemId || '',
@@ -3340,55 +3318,18 @@ function renderTasksPage(){
 }
 
 // ---------------------------------------------------------------
-// SETTLE UP  (one-off calculator, nothing saved)
+// SETTLE UP  (one-off manual calculator, nothing saved)
 // ---------------------------------------------------------------
 function renderSettleUpPage(){
-  const startEl = document.getElementById('settle-range-start');
-  const endEl = document.getElementById('settle-range-end');
-  if (!startEl.value) startEl.value = todayISO().slice(0,8) + '01';
-  if (!endEl.value) endEl.value = todayISO();
-  const start = startEl.value, end = endEl.value;
+  const received = num(document.getElementById('settle-received').value);
+  const shipping = num(document.getElementById('settle-shipping').value);
+  const tax = num(document.getElementById('settle-tax').value);
+  const remaining = received - shipping - tax;
+  const partnerShare = remaining / 2;
 
-  const sales = DB.sales.filter(s => s.date >= start && s.date <= end);
-  const netProfit = sales.reduce((a,s) => a + saleProfit(s), 0);
-  const tax = netProfit > 0 ? netProfit * taxRate() : 0;
-  const afterTax = netProfit - tax;
-  const baseShare = afterTax / 2;
-
-  const davShipping = sales.filter(s => s.shippingPaidBy === 'Dav').reduce((a,s) => a + num(s.shipping), 0);
-  const danShipping = sales.filter(s => s.shippingPaidBy === 'Dan').reduce((a,s) => a + num(s.shipping), 0);
-  const davTotal = baseShare + davShipping;
-  const danTotal = baseShare + danShipping;
-
-  document.getElementById('settle-stats').innerHTML = `
-    <div class="stat-card"><div class="stat-value">${fmtMoney(netProfit)}</div><div class="stat-label">Net Profit</div><div class="stat-sub">This period</div></div>
-    <div class="stat-card"><div class="stat-value">${fmtMoney(tax)}</div><div class="stat-label">Tax Provision</div><div class="stat-sub">${(taxRate()*100).toFixed(1)}% of profit</div></div>
-    <div class="stat-card"><div class="stat-value">${fmtMoney(afterTax)}</div><div class="stat-label">After-Tax Profit</div><div class="stat-sub">Split 50/50</div></div>
-    <div class="stat-card"><div class="stat-value">${fmtMoney(davShipping+danShipping)}</div><div class="stat-label">Paid Personally</div><div class="stat-sub">Shipping, not from shared pot</div></div>`;
-
-  const diff = danTotal - davTotal;
-  const headlineName = diff === 0 ? null : (diff > 0 ? 'Dan' : 'Dav');
-  const headlineFrom = diff === 0 ? null : (diff > 0 ? 'Dav' : 'Dan');
-  document.getElementById('settle-headline').innerHTML = diff === 0 ? `
-    <div style="font-size:13px;color:#9fb0d4;margin-bottom:6px;">Already even</div>
-    <div style="font-size:32px;font-weight:800;font-family:var(--font-mono);color:#fff;">${fmtMoney(0)}</div>` : `
-    <div style="font-size:13px;color:#9fb0d4;margin-bottom:6px;">${headlineFrom} sends ${headlineName}</div>
-    <div style="font-size:40px;font-weight:800;font-family:var(--font-mono);color:#fff;">${fmtMoney(Math.abs(diff))}</div>
-    <div style="font-size:12px;color:#9fb0d4;margin-top:10px;">Evens out each partner's after-tax share plus whatever they personally covered for shipping</div>`;
-
-  function breakdownHTML(shipping, total){
-    return `
-      <div class="insight-grid">
-        <div class="insight">After-Tax Share<br><strong>${fmtMoney(baseShare)}</strong></div>
-        <div class="insight">Shipping Reimbursement<br><strong>${fmtMoney(shipping)}</strong></div>
-      </div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:var(--text-muted);font-size:12px;">Total</span>
-        <span style="font-size:18px;font-weight:800;font-family:var(--font-mono);">${fmtMoney(total)}</span>
-      </div>`;
-  }
-  document.getElementById('settle-dav-breakdown').innerHTML = breakdownHTML(davShipping, davTotal);
-  document.getElementById('settle-dan-breakdown').innerHTML = breakdownHTML(danShipping, danTotal);
+  document.getElementById('settle-result').textContent = fmtMoney(partnerShare);
+  document.getElementById('settle-detail').textContent =
+    `${fmtMoney(received)} received − ${fmtMoney(shipping)} shipping − ${fmtMoney(tax)} tax = ${fmtMoney(remaining)}, split 50/50`;
 }
 
 let _orderItemsDraft = [];
