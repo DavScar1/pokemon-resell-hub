@@ -1135,6 +1135,8 @@ table.tbl tr:hover{background:#f7f8fb;}
       <div class="form-group"><label>Date</label><input type="date" id="investment-date"></div>
       <div class="form-group"><label>Status</label><select id="investment-status"><option>Unpaid</option><option>Paid</option></select></div>
     </div>
+    <div class="form-group"><label>Investor's Cut of Their Profit Share (%)</label><input type="number" id="investment-profit-cut" min="0" max="100" step="1" value="40"></div>
+    <p style="color:var(--text-muted);font-size:11.5px;margin-top:-8px;">e.g. if they invested 8.5% of the order and this is 40%, they get 40% of that 8.5% profit share — we keep the rest.</p>
     <div class="form-group"><label>Notes</label><textarea id="investment-notes" rows="2" placeholder="Anything worth remembering about this arrangement"></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('investment-modal')">Cancel</button>
@@ -2924,8 +2926,10 @@ function investmentPayout(inv){
   const orderCost = orderTotalCost(order);
   const sharePercent = orderCost > 0 ? inv.amount / orderCost : 0;
   const { profit: orderProfit } = orderRevenueProfit(order);
-  const profitShare = sharePercent * orderProfit;
-  return { orderFound: true, order, orderCost, sharePercent, orderProfit, profitShare, totalOwed: inv.amount + profitShare };
+  const profitCutPercent = inv.profitCutPercent != null ? inv.profitCutPercent : 0.4;
+  const fullProfitShare = sharePercent * orderProfit;
+  const profitShare = fullProfitShare * profitCutPercent;
+  return { orderFound: true, order, orderCost, sharePercent, orderProfit, profitCutPercent, fullProfitShare, profitShare, totalOwed: inv.amount + profitShare };
 }
 
 function openInvestmentModal(id){
@@ -2938,6 +2942,7 @@ function openInvestmentModal(id){
     document.getElementById('investment-amount').value = inv.amount;
     document.getElementById('investment-date').value = inv.date;
     document.getElementById('investment-status').value = inv.status;
+    document.getElementById('investment-profit-cut').value = inv.profitCutPercent != null ? inv.profitCutPercent * 100 : 40;
     document.getElementById('investment-notes').value = inv.notes || '';
   } else {
     document.getElementById('investment-name').value = '';
@@ -2945,6 +2950,7 @@ function openInvestmentModal(id){
     document.getElementById('investment-amount').value = '';
     document.getElementById('investment-date').value = todayISO();
     document.getElementById('investment-status').value = 'Unpaid';
+    document.getElementById('investment-profit-cut').value = 40;
     document.getElementById('investment-notes').value = '';
   }
   openModalEl('investment-modal');
@@ -2962,6 +2968,7 @@ function saveInvestment(){
     name, orderId, amount,
     date: document.getElementById('investment-date').value || todayISO(),
     status: document.getElementById('investment-status').value,
+    profitCutPercent: num(document.getElementById('investment-profit-cut').value) / 100,
     notes: document.getElementById('investment-notes').value.trim(),
   };
   if (id) {
@@ -3013,10 +3020,11 @@ function renderInvestorsPage(){
       ${payout.orderFound ? `
       <div style="display:flex;gap:18px;margin-top:12px;font-size:12px;color:var(--text-secondary);">
         <div>Invested<br><strong style="color:var(--text);font-size:14px;">${fmtMoney(inv.amount)}</strong></div>
-        <div>Share<br><strong style="color:var(--text);font-size:14px;">${(payout.sharePercent*100).toFixed(1)}%</strong></div>
+        <div>Order Share<br><strong style="color:var(--text);font-size:14px;">${(payout.sharePercent*100).toFixed(1)}%</strong></div>
+        <div>Their Cut<br><strong style="color:var(--text);font-size:14px;">${(payout.profitCutPercent*100).toFixed(0)}%</strong></div>
         <div>Profit Share<br><strong style="color:${payout.profitShare>=0?'#16a34a':'#dc2626'};font-size:14px;">${fmtMoney(payout.profitShare)}</strong></div>
       </div>
-      <div class="cf-card-sub" style="margin-top:6px;">Based on this order's profit so far — updates as more of it sells</div>
+      <div class="cf-card-sub" style="margin-top:6px;">${(payout.sharePercent*100).toFixed(1)}% of order profit (${fmtMoney(payout.fullProfitShare)}) × their ${(payout.profitCutPercent*100).toFixed(0)}% cut — updates as more of the order sells</div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:12px;color:var(--text-muted);">Total Owed</span>
         <span style="font-size:18px;font-weight:800;font-family:var(--font-mono);">${fmtMoney(payout.totalOwed)}</span>
