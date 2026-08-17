@@ -847,7 +847,8 @@ table.tbl tr:hover{background:#f7f8fb;}
 <!-- Multi-item sale modal (one buyer, several different box types in one order) -->
 <div class="modal-overlay" id="multi-sale-modal">
   <div class="modal" style="max-width:640px;">
-    <h3>Log Multi-Item Sale</h3>
+    <h3 id="msale-modal-title">Log Multi-Item Sale</h3>
+    <input type="hidden" id="msale-edit-group-id">
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="msale-date"></div>
       <div class="form-group"><label>Platform</label><select id="msale-platform"></select></div>
@@ -855,11 +856,12 @@ table.tbl tr:hover{background:#f7f8fb;}
     <div class="form-group"><label>Buyer <span style="text-transform:none;font-weight:400;color:var(--text-muted);">(optional)</span></label>
       <input type="text" id="msale-buyer" list="buyer-names" placeholder="e.g. John, @username">
     </div>
+    <div class="form-group"><label>Total Order Revenue (€)</label><input type="number" id="msale-revenue" min="0" step="0.01" placeholder="0.00" oninput="computeMultiSalePreview()"></div>
     <div class="form-row">
       <div class="form-group"><label>Total Shipping (€)</label><input type="number" id="msale-shipping" min="0" step="0.01" value="0" oninput="computeMultiSalePreview()"></div>
       <div class="form-group"><label>Total Platform Fees (€)</label><input type="number" id="msale-fee" min="0" step="0.01" value="0" oninput="computeMultiSalePreview()"></div>
     </div>
-    <p style="color:var(--text-muted);font-size:11.5px;margin-top:-6px;margin-bottom:12px;">Shipping and fees are split evenly across the items below.</p>
+    <p style="color:var(--text-muted);font-size:11.5px;margin-top:-6px;margin-bottom:12px;">Just enter what you actually received in total — no need to work out a price per box. Revenue, shipping and fees are all split across the items automatically (by each item's share of total cost).</p>
 
     <label style="display:block;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;">Items</label>
     <div id="msale-items"></div>
@@ -1614,6 +1616,7 @@ function renderSales(){
           <td>${anyRefunded ? `<span class="pill pill-red">↩ Refund(s)</span>` : (allReceived ? `<span class="pill pill-green">Received</span>` : `<span class="pill pill-yellow pending">Awaiting</span>`)}</td>
           <td style="color:var(--text-muted);font-size:11px;">${escapeHtml((members[0].loggedBy||'').split('@')[0])}</td>
           <td><div class="row-actions" onclick="event.stopPropagation()">
+            <button class="icon-btn" title="Edit entire sale" onclick="openMultiSaleModal('${groupId}')">✏️</button>
             <button class="icon-btn" title="Delete entire sale" onclick="deleteSaleGroup('${groupId}')">🗑️</button>
           </div></td>
         </tr>
@@ -1809,7 +1812,6 @@ function renderMultiSaleItems(){
     <div class="msale-item-row">
       <input type="text" list="inventory-names" placeholder="Item name" value="${escapeHtml(row.item)}" oninput="onMultiSaleItemNameInput(${idx}, this.value)">
       <input type="number" min="1" placeholder="Qty" value="${row.qty}" oninput="_multiSaleItemsDraft[${idx}].qty=num(this.value); computeMultiSalePreview();">
-      <input type="number" min="0" step="0.01" placeholder="Price €" value="${row.price}" oninput="_multiSaleItemsDraft[${idx}].price=num(this.value); computeMultiSalePreview();">
       <input type="number" min="0" step="0.01" placeholder="Cost €" id="msale-cost-${idx}" value="${row.cost}" oninput="_multiSaleItemsDraft[${idx}].cost=num(this.value); computeMultiSalePreview();">
       <select onchange="_multiSaleItemsDraft[${idx}].orderKey=this.value">${saleOrderLinkOptionsHTML(row.orderKey)}</select>
       ${_multiSaleItemsDraft.length>1 ? `<button type="button" class="icon-btn" onclick="removeMultiSaleItemRow(${idx})">🗑️</button>` : ''}
@@ -1842,8 +1844,8 @@ function updateMultiSaleItemWarning(idx){
   el.style.display = '';
 }
 
-function addMultiSaleItemRow(item, qty, price, cost){
-  _multiSaleItemsDraft.push({ item: item||'', qty: qty||1, price: price===undefined?'':price, cost: cost===undefined?'':cost, orderKey: '' });
+function addMultiSaleItemRow(item, qty, cost, orderKey){
+  _multiSaleItemsDraft.push({ item: item||'', qty: qty||1, cost: cost===undefined?'':cost, orderKey: orderKey||'' });
   renderMultiSaleItems();
 }
 
@@ -1853,60 +1855,112 @@ function removeMultiSaleItemRow(idx){
   renderMultiSaleItems();
 }
 
+// Allocates a total across rows proportional to each row's cost (qty*cost); falls back to
+// an even per-unit split when no costs are entered, so revenue never depends on a per-item price.
+function allocateMultiSaleRevenue(rows, totalRevenue){
+  const totalCost = rows.reduce((a,r) => a + num(r.qty)*num(r.cost), 0);
+  const totalQty = rows.reduce((a,r) => a + num(r.qty), 0) || 1;
+  return rows.map(r => {
+    const share = totalCost > 0 ? (num(r.qty)*num(r.cost))/totalCost : num(r.qty)/totalQty;
+    return totalRevenue * share;
+  });
+}
+
 function computeMultiSalePreview(){
+  const revenue = num(document.getElementById('msale-revenue').value);
   const shipping = num(document.getElementById('msale-shipping').value);
   const fee = num(document.getElementById('msale-fee').value);
   const rows = _multiSaleItemsDraft;
-  const n = rows.length || 1;
-  const revenue = rows.reduce((a,r) => a + num(r.qty)*num(r.price), 0);
   const cost = rows.reduce((a,r) => a + num(r.qty)*num(r.cost), 0);
   const profit = revenue - cost - fee - shipping;
   document.getElementById('msale-preview').innerHTML =
-    `Revenue: <strong>${fmtMoney(revenue)}</strong> &nbsp;·&nbsp; Profit: <strong style="color:${profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(profit)}</strong> &nbsp;·&nbsp; ${rows.length} item${rows.length===1?'':'s'} &nbsp;·&nbsp; ${fmtMoney((shipping+fee)/n)}/item shipping+fees`;
+    `Revenue: <strong>${fmtMoney(revenue)}</strong> &nbsp;·&nbsp; Cost: <strong>${fmtMoney(cost)}</strong> &nbsp;·&nbsp; Profit: <strong style="color:${profit>=0?'#16a34a':'#dc2626'};">${fmtMoney(profit)}</strong> &nbsp;·&nbsp; ${rows.length} item${rows.length===1?'':'s'}`;
 }
 
-function openMultiSaleModal(){
-  document.getElementById('msale-date').value = todayISO();
-  populatePlatformSelect('msale-platform', '');
-  document.getElementById('msale-buyer').value = '';
-  document.getElementById('msale-shipping').value = 0;
-  document.getElementById('msale-fee').value = 0;
-  document.getElementById('msale-notes').value = '';
-  _multiSaleItemsDraft = [
-    { item: '', qty: 1, price: '', cost: '', orderKey: '' },
-    { item: '', qty: 1, price: '', cost: '', orderKey: '' },
-  ];
+function openMultiSaleModal(groupId){
+  if (groupId) {
+    const members = DB.sales.filter(s => s.groupId === groupId).sort((a,b) => (a.__order||0)-(b.__order||0));
+    if (!members.length) return;
+    if (members.some(s => s.refunded)) {
+      alert('One or more items in this sale have a refund on them. Undo or edit that refund individually (expand the sale, use the refund icon on that item) before editing the whole sale.');
+      return;
+    }
+    document.getElementById('msale-modal-title').textContent = 'Edit Multi-Item Sale';
+    document.getElementById('msale-edit-group-id').value = groupId;
+    document.getElementById('msale-date').value = members[0].date;
+    populatePlatformSelect('msale-platform', members[0].platform);
+    document.getElementById('msale-buyer').value = members[0].buyer || '';
+    document.getElementById('msale-revenue').value = members.reduce((a,s) => a + s.qty*s.price, 0);
+    document.getElementById('msale-shipping').value = members.reduce((a,s) => a + num(s.shipping), 0);
+    document.getElementById('msale-fee').value = members.reduce((a,s) => a + num(s.fee), 0);
+    document.getElementById('msale-notes').value = members[0].notes || '';
+    _multiSaleItemsDraft = members.map(s => ({
+      item: s.item, qty: s.qty, cost: s.cost,
+      orderKey: (s.orderId && s.orderItemId) ? `${s.orderId}::${s.orderItemId}` : '',
+    }));
+  } else {
+    document.getElementById('msale-modal-title').textContent = 'Log Multi-Item Sale';
+    document.getElementById('msale-edit-group-id').value = '';
+    document.getElementById('msale-date').value = todayISO();
+    populatePlatformSelect('msale-platform', '');
+    document.getElementById('msale-buyer').value = '';
+    document.getElementById('msale-revenue').value = '';
+    document.getElementById('msale-shipping').value = 0;
+    document.getElementById('msale-fee').value = 0;
+    document.getElementById('msale-notes').value = '';
+    _multiSaleItemsDraft = [
+      { item: '', qty: 1, cost: '', orderKey: '' },
+      { item: '', qty: 1, cost: '', orderKey: '' },
+    ];
+  }
   renderMultiSaleItems();
   openModalEl('multi-sale-modal');
 }
 
 function saveMultiSale(){
   const rows = _multiSaleItemsDraft
-    .map(r => ({ item: (r.item||'').trim(), qty: num(r.qty)||0, price: num(r.price), cost: num(r.cost), orderKey: r.orderKey||'' }))
+    .map(r => ({ item: (r.item||'').trim(), qty: num(r.qty)||0, cost: num(r.cost), orderKey: r.orderKey||'' }))
     .filter(r => r.item && r.qty > 0);
   if (!rows.length) { alert('Please add at least one item with a name and quantity.'); return; }
 
+  const editGroupId = document.getElementById('msale-edit-group-id').value;
   const date = document.getElementById('msale-date').value || todayISO();
   const platform = document.getElementById('msale-platform').value;
   const buyer = document.getElementById('msale-buyer').value.trim();
   const notes = document.getElementById('msale-notes').value.trim();
+  const totalRevenue = num(document.getElementById('msale-revenue').value);
   const totalShipping = num(document.getElementById('msale-shipping').value);
   const totalFee = num(document.getElementById('msale-fee').value);
   const n = rows.length;
   const shippingPerItem = totalShipping / n;
   const feePerItem = totalFee / n;
-  const groupId = uid();
+  const revenueByRow = allocateMultiSaleRevenue(rows, totalRevenue);
 
-  rows.forEach(r => {
+  let cashStatus = 'pending', cashInDate = '';
+  if (editGroupId) {
+    // Reverse the old inventory deduction, then remove the old rows outright (this is an
+    // edit, not a delete, so they shouldn't land in Recently Deleted) before recreating them.
+    const oldMembers = DB.sales.filter(s => s.groupId === editGroupId);
+    if (oldMembers.length && oldMembers.every(saleCashReceived)) { cashStatus = 'received'; cashInDate = oldMembers[0].cashInDate || todayISO(); }
+    oldMembers.forEach(s => {
+      const invItem = DB.inventory.find(i => i.name.toLowerCase() === s.item.toLowerCase());
+      if (invItem) invItem.qty += s.qty;
+    });
+    DB.sales = DB.sales.filter(s => s.groupId !== editGroupId);
+  }
+  const groupId = editGroupId || uid();
+
+  rows.forEach((r, idx) => {
     const [orderId, orderItemId] = (r.orderKey || '').split('::');
     const invItem = DB.inventory.find(i => i.name.toLowerCase() === r.item.toLowerCase());
+    const price = r.qty > 0 ? revenueByRow[idx] / r.qty : 0;
     const data = {
       id: uid(), date, platform, item: r.item, qty: r.qty, buyer,
       category: (invItem && invItem.category) || 'Booster Box',
-      price: r.price, cost: r.cost,
+      price, cost: r.cost,
       fee: feePerItem, shipping: shippingPerItem, notes,
       orderId: orderId || '', orderItemId: orderItemId || '',
-      groupId, loggedBy: currentUserEmail(), cashStatus: 'pending', cashInDate: '',
+      groupId, __order: idx, loggedBy: currentUserEmail(), cashStatus, cashInDate,
     };
     if (!data.orderId) {
       const match = findAvailableOrderItem(r.item, r.qty, date);
@@ -1916,7 +1970,7 @@ function saveMultiSale(){
     if (invItem) invItem.qty = Math.max(0, invItem.qty - r.qty);
   });
 
-  logActivity(`Added multi-item sale (${rows.length} items): ${rows.map(r=>`${r.item} × ${r.qty}`).join(', ')}`);
+  logActivity(`${editGroupId ? 'Edited' : 'Added'} multi-item sale (${rows.length} items): ${rows.map(r=>`${r.item} × ${r.qty}`).join(', ')}`);
   closeModal('multi-sale-modal');
   save();
 }
