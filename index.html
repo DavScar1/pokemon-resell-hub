@@ -294,6 +294,7 @@ table.tbl tr:hover{background:#f7f8fb;}
 .cf-mini-line.done{background:var(--green);}
 .pay-pill{cursor:pointer;border:none;font-family:inherit;}
 .pay-pill.pending:hover{background:rgba(217,119,6,.22);}
+.pay-pill.pill-gray:hover{background:#e2e5eb;}
 
 /* ---------- Responsive ---------- */
 @media(max-width:860px){
@@ -1314,7 +1315,8 @@ function currentUserEmail(){ return (window._authEmail) || ''; }
 function saleRevenue(s){ return s.qty*s.price - (s.refunded ? num(s.refundAmount) : 0); }
 function saleCostTotal(s){ return (s.qty*s.cost) + num(s.fee) + num(s.shipping) + (s.refunded ? num(s.refundShippingCost) : 0); }
 function saleProfit(s){ return saleRevenue(s) - (s.qty*s.cost) - num(s.fee) - num(s.shipping) - (s.refunded ? num(s.refundShippingCost) : 0); }
-function saleCashReceived(s){ return s.cashStatus !== 'pending'; }
+function saleCashReceived(s){ return s.cashStatus === 'received'; }
+function salePaymentStage(s){ return s.cashStatus === 'received' ? 'received' : (s.cashStatus === 'unshipped' ? 'unshipped' : 'pending'); }
 
 // All-time cash position ignoring any starting-balance baseline — used as the suggested
 // value when setting a new baseline, and as the Current Balance formula when no baseline is set.
@@ -1340,6 +1342,28 @@ function markSaleCashPending(id){
   s.cashInDate = '';
   logActivity(`Marked cash awaiting: ${s.item} × ${s.qty} — ${fmtMoney(saleRevenue(s))}`);
   save();
+}
+
+function markSaleShipped(id){
+  const s = DB.sales.find(x => x.id === id);
+  if (!s) return;
+  s.cashStatus = 'pending';
+  logActivity(`Marked shipped, awaiting payment: ${s.item} × ${s.qty} — ${fmtMoney(saleRevenue(s))}`);
+  save();
+}
+
+// Shared payment-status pill for a single sale row -- Unshipped -> Awaiting -> Received,
+// clicking advances to the next stage (Received reverts back to Awaiting). A refund badge,
+// if any, still shows alongside it exactly like before.
+function salePaymentPillHTML(s){
+  const refundBadge = s.refunded ? `<button class="pill pill-red pay-pill" title="${escapeHtml(s.refundNotes||'Click to edit this refund')}" style="margin-right:4px;" onclick="openRefundModal('${s.id}')">↩ Refunded</button>` : '';
+  const stage = salePaymentStage(s);
+  const statusPill = stage === 'unshipped'
+    ? `<button class="pill pill-gray pay-pill" title="Click to mark shipped" onclick="markSaleShipped('${s.id}')">Unshipped</button>`
+    : stage === 'received'
+      ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
+      : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`;
+  return refundBadge + statusPill;
 }
 
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1575,12 +1599,7 @@ function renderSales(){
         <td>${escapeHtml(s.platform)}</td>
         <td>${fmtMoney(saleRevenue(s))}</td>
         <td style="color:${saleProfit(s)>=0?'#16a34a':'#dc2626'};font-weight:700;">${fmtMoney(saleProfit(s))}</td>
-        <td>
-          ${s.refunded ? `<button class="pill pill-red pay-pill" title="${escapeHtml(s.refundNotes||'Click to edit this refund')}" style="margin-right:4px;" onclick="openRefundModal('${s.id}')">↩ Refunded</button>` : ''}
-          ${saleCashReceived(s)
-            ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
-            : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
-        </td>
+        <td>${salePaymentPillHTML(s)}</td>
         <td style="color:var(--text-muted);font-size:11px;">${escapeHtml((s.loggedBy||'').split('@')[0])}</td>
         <td><div class="row-actions">
           ${s.refunded
@@ -1604,6 +1623,7 @@ function renderSales(){
         const totalRevenue = members.reduce((a,s) => a + saleRevenue(s), 0);
         const totalProfit = members.reduce((a,s) => a + saleProfit(s), 0);
         const allReceived = members.every(saleCashReceived);
+        const allUnshipped = members.every(s => salePaymentStage(s) === 'unshipped');
         const anyRefunded = members.some(s => s.refunded);
         const itemNames = members.map(s => s.item).join(', ');
         return `<tr class="sale-group-toggle" onclick="toggleSaleGroup('${groupId}')" style="cursor:pointer;background:rgba(99,102,241,0.06);">
@@ -1613,7 +1633,7 @@ function renderSales(){
           <td>${escapeHtml(members[0].platform)}</td>
           <td>${fmtMoney(totalRevenue)}</td>
           <td style="color:${totalProfit>=0?'#16a34a':'#dc2626'};font-weight:700;">${fmtMoney(totalProfit)}</td>
-          <td>${anyRefunded ? `<span class="pill pill-red">↩ Refund(s)</span>` : (allReceived ? `<span class="pill pill-green">Received</span>` : `<span class="pill pill-yellow pending">Awaiting</span>`)}</td>
+          <td>${anyRefunded ? `<span class="pill pill-red">↩ Refund(s)</span>` : (allReceived ? `<span class="pill pill-green">Received</span>` : (allUnshipped ? `<span class="pill pill-gray">Unshipped</span>` : `<span class="pill pill-yellow pending">Awaiting</span>`))}</td>
           <td style="color:var(--text-muted);font-size:11px;">${escapeHtml((members[0].loggedBy||'').split('@')[0])}</td>
           <td><div class="row-actions" onclick="event.stopPropagation()">
             <button class="icon-btn" title="Edit entire sale" onclick="openMultiSaleModal('${groupId}')">✏️</button>
@@ -1775,7 +1795,7 @@ function saveSale(){
       data.cashStatus = 'received';
       data.cashInDate = todayISO();
     } else {
-      data.cashStatus = 'pending';
+      data.cashStatus = 'unshipped';
       data.cashInDate = '';
     }
     if (!data.orderId) {
@@ -1936,12 +1956,16 @@ function saveMultiSale(){
   const feePerItem = totalFee / n;
   const revenueByRow = allocateMultiSaleRevenue(rows, totalRevenue);
 
-  let cashStatus = 'pending', cashInDate = '';
+  let cashStatus = 'unshipped', cashInDate = '';
   if (editGroupId) {
     // Reverse the old inventory deduction, then remove the old rows outright (this is an
     // edit, not a delete, so they shouldn't land in Recently Deleted) before recreating them.
     const oldMembers = DB.sales.filter(s => s.groupId === editGroupId);
-    if (oldMembers.length && oldMembers.every(saleCashReceived)) { cashStatus = 'received'; cashInDate = oldMembers[0].cashInDate || todayISO(); }
+    if (oldMembers.length) {
+      if (oldMembers.every(saleCashReceived)) { cashStatus = 'received'; cashInDate = oldMembers[0].cashInDate || todayISO(); }
+      else if (oldMembers.every(s => salePaymentStage(s) === 'unshipped')) { cashStatus = 'unshipped'; }
+      else { cashStatus = 'pending'; }
+    }
     oldMembers.forEach(s => {
       const invItem = DB.inventory.find(i => i.name.toLowerCase() === s.item.toLowerCase());
       if (invItem) invItem.qty += s.qty;
@@ -2918,12 +2942,7 @@ function renderCashFlow(){
     const salesBreakdown = linkedSales.length ? `<div style="margin-top:${itemsBreakdown?0:10}px;">` + linkedSales.map(s => `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:12.5px;">
         <span>${escapeHtml(s.item)} × ${s.qty} <span style="color:var(--text-muted);">— ${fmtMoney(saleRevenue(s))}</span></span>
-        <span>
-          ${s.refunded ? `<button class="pill pill-red pay-pill" title="Click to edit this refund" style="margin-right:4px;" onclick="openRefundModal('${s.id}')">↩ Refunded</button>` : ''}
-          ${saleCashReceived(s)
-            ? `<button class="pill pill-green pay-pill" title="Click to revert to awaiting payment" onclick="markSaleCashPending('${s.id}')">Received</button>`
-            : `<button class="pill pill-yellow pay-pill pending" title="Click to mark cash received" onclick="markSaleCashReceived('${s.id}')">Awaiting</button>`}
-        </span>
+        <span>${salePaymentPillHTML(s)}</span>
       </div>`).join('') + `</div>` : '';
     return `<div class="cf-card">
       <div class="cf-card-top">
