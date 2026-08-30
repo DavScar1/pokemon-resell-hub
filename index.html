@@ -331,6 +331,12 @@ table.tbl tr:hover{background:#f7f8fb;}
   table.tbl th,table.tbl td{padding:8px 6px;}
   .cf-kpis{grid-template-columns:1fr;}
 }
+@media print{
+  body > *:not(#investor-report-modal){display:none!important;}
+  #investor-report-modal{position:static!important;background:#fff!important;backdrop-filter:none!important;padding:0!important;display:block!important;}
+  #investor-report-modal .modal{box-shadow:none!important;max-width:100%!important;width:100%!important;max-height:none!important;overflow:visible!important;margin:0!important;animation:none!important;}
+  .no-print{display:none!important;}
+}
 </style>
 </head>
 <body>
@@ -1184,6 +1190,20 @@ table.tbl tr:hover{background:#f7f8fb;}
       <button class="btn btn-secondary" onclick="closeModal('investment-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveInvestment()">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- Investor report modal (printable) -->
+<div class="modal-overlay" id="investor-report-modal">
+  <div class="modal" style="max-width:700px;max-height:88vh;overflow-y:auto;">
+    <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;">Investor Report</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print / Save PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('investor-report-modal')">Close</button>
+      </div>
+    </div>
+    <div id="investor-report-body"></div>
   </div>
 </div>
 
@@ -3230,6 +3250,95 @@ function investmentPayout(inv){
   return { orderFound: true, order, orderCost, sharePercent, orderProfit, profitCutPercent, fullProfitShare, profitShare, totalOwed: inv.amount + profitShare };
 }
 
+// Clean, printable breakdown for a single investor -- their investment, how the profit share
+// is calculated step by step, the order's sell-through progress, and the sales behind it.
+function openInvestorReportModal(invId){
+  const inv = DB.investments.find(x => x.id === invId);
+  if (!inv) return;
+  const payout = investmentPayout(inv);
+  if (!payout.orderFound) { alert("The order behind this investment no longer exists, so a full report isn't possible."); return; }
+
+  const o = payout.order;
+  const items = orderItems(o);
+  const totalQty = orderTotalQty(o);
+  const soldQty = items.reduce((a,it) => a + orderItemSoldQty(o, it), 0);
+  const pctSold = totalQty > 0 ? Math.min(100, (soldQty/totalQty)*100) : 0;
+  const linkedSales = orderLinkedSales(o).sort((a,b) => a.date.localeCompare(b.date));
+
+  const salesRows = linkedSales.length ? linkedSales.map(s => `
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;">${fmtDate(s.date)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;">${escapeHtml(s.item)} × ${s.qty}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;">${fmtMoney(saleRevenue(s))}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;color:${saleProfit(s)>=0?'#16a34a':'#dc2626'};">${fmtMoney(saleProfit(s))}</td>
+    </tr>`).join('') : `<tr><td colspan="4" style="padding:14px;text-align:center;color:#9ca3af;">No sales logged against this order yet.</td></tr>`;
+
+  document.getElementById('investor-report-body').innerHTML = `
+    <div style="background:#fff;color:#111827;font-family:inherit;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;border-bottom:2px solid #111827;padding-bottom:14px;">
+        <div>
+          <div style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#6b7280;font-weight:700;">Investor Report</div>
+          <div style="font-size:22px;font-weight:800;margin-top:2px;">${escapeHtml(inv.name)}</div>
+        </div>
+        <div style="text-align:right;font-size:11.5px;color:#6b7280;">
+          Generated ${fmtDate(todayISO())}<br>
+          <span class="pill ${inv.status==='Paid'?'pill-green':'pill-yellow'}" style="margin-top:4px;display:inline-block;">${escapeHtml(inv.status)}</span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:#6b7280;">Amount Invested</div>
+          <div style="font-size:18px;font-weight:800;margin-top:2px;">${fmtMoney(inv.amount)}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:2px;">on ${fmtDate(inv.date)}</div>
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:#6b7280;">Order</div>
+          <div style="font-size:14px;font-weight:700;margin-top:2px;">${escapeHtml(orderDisplayName(o))}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:2px;">${escapeHtml(o.supplier)} · arrived ${fmtDate(o.arrival)}</div>
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:#6b7280;">Order Progress</div>
+          <div style="font-size:18px;font-weight:800;margin-top:2px;">${soldQty}/${totalQty} sold</div>
+          <div style="background:#e5e7eb;border-radius:99px;height:6px;margin-top:6px;overflow:hidden;"><div style="background:#6366f1;height:100%;width:${pctSold.toFixed(0)}%;"></div></div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">How the profit share is calculated</div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;"><span>Order total cost</span><strong>${fmtMoney(payout.orderCost)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;"><span>Your investment</span><strong>${fmtMoney(inv.amount)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-top:1px dashed #d1d5db;"><span>Your share of the order (${fmtMoney(inv.amount)} ÷ ${fmtMoney(payout.orderCost)})</span><strong>${(payout.sharePercent*100).toFixed(1)}%</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;"><span>Order profit so far</span><strong style="color:${payout.orderProfit>=0?'#16a34a':'#dc2626'};">${fmtMoney(payout.orderProfit)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-top:1px dashed #d1d5db;"><span>Your share of that profit (${(payout.sharePercent*100).toFixed(1)}% × ${fmtMoney(payout.orderProfit)})</span><strong>${fmtMoney(payout.fullProfitShare)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;"><span>Agreed cut of your share</span><strong>${(payout.profitCutPercent*100).toFixed(0)}%</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13.5px;border-top:1px solid #d1d5db;margin-top:4px;"><span style="font-weight:700;">Your profit share</span><strong style="color:#16a34a;">${fmtMoney(payout.profitShare)}</strong></div>
+      </div>
+
+      <div style="background:#111827;color:#fff;border-radius:12px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;">
+        <div>
+          <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Total Owed</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Investment (${fmtMoney(inv.amount)}) + Profit Share (${fmtMoney(payout.profitShare)})</div>
+        </div>
+        <div style="font-size:30px;font-weight:800;font-family:var(--font-mono);">${fmtMoney(payout.totalOwed)}</div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Sales behind this order</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px;">
+        <thead><tr style="text-align:left;color:#6b7280;">
+          <th style="padding:6px 10px;border-bottom:2px solid #e5e7eb;">Date</th>
+          <th style="padding:6px 10px;border-bottom:2px solid #e5e7eb;">Item</th>
+          <th style="padding:6px 10px;border-bottom:2px solid #e5e7eb;text-align:right;">Revenue</th>
+          <th style="padding:6px 10px;border-bottom:2px solid #e5e7eb;text-align:right;">Profit</th>
+        </tr></thead>
+        <tbody>${salesRows}</tbody>
+      </table>
+
+      <p style="font-size:11px;color:#9ca3af;margin-top:16px;">Profit share reflects sales completed as of ${fmtDate(todayISO())} and will update as remaining stock from this order sells.${inv.notes ? ` Notes: ${escapeHtml(inv.notes)}` : ''}</p>
+    </div>`;
+  openModalEl('investor-report-modal');
+}
+
 function openInvestmentModal(id){
   document.getElementById('investment-edit-id').value = id || '';
   document.getElementById('investment-modal-title').textContent = id ? 'Edit Investment' : 'Add Investment';
@@ -3330,6 +3439,7 @@ function renderInvestorsPage(){
       ${inv.notes ? `<div class="cf-card-sub" style="margin-top:8px;">${escapeHtml(inv.notes)}</div>` : ''}
       <div style="display:flex;gap:6px;margin-top:12px;">
         <button class="btn ${inv.status==='Paid'?'btn-secondary':'btn-primary'} btn-sm" style="flex:1;" onclick="toggleInvestmentPaid('${inv.id}')">${inv.status==='Paid' ? 'Mark Unpaid' : '✓ Mark Paid Back'}</button>
+        ${payout.orderFound ? `<button class="icon-btn" title="Generate investor report" onclick="openInvestorReportModal('${inv.id}')">📄</button>` : ''}
         <button class="icon-btn" onclick="openInvestmentModal('${inv.id}')">✏️</button>
         <button class="icon-btn" onclick="deleteInvestment('${inv.id}')">🗑️</button>
       </div>
